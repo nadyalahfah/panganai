@@ -33,6 +33,8 @@ import GrafikHistoris from "../components/GrafikHistoris";
 import GrafikPrediksi from "../components/GrafikPrediksi";
 import IndonesiaMap from "../components/IndonesiaMap";
 import DistributionOptimizer from "../components/DistributionOptimizer";
+import EarlyWarningSystem from "../components/EarlyWarningSystem";
+import PolicyRecommendation from "../components/PolicyRecommendation";
 import AlertCard from "../components/AlertCard";
 import {
   fetchAlert,
@@ -593,25 +595,18 @@ export default function Dashboard({ onAlertsLoaded }) {
         )}
       </div>
 
-      {/* ── Section H: Alert Cards ── */}
-      <div className="section-header">
-        <div className="section-title">🔔 Alert Kenaikan Harga Terkini</div>
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          {alerts.length} total alert
-        </span>
-      </div>
+      {/* ── Section H: Early Warning System ── */}
       {loading ? (
-        <div className="alert-grid">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="skeleton skeleton-card" />
-          ))}
-        </div>
+        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
       ) : (
-        <div className="alert-grid">
-          {alerts.slice(0, 8).map((a, i) => (
-            <AlertCard key={`${a.komoditas}-${a.provinsi}-${i}`} alert={a} />
-          ))}
-        </div>
+        <EarlyWarningSystem alerts={alerts} />
+      )}
+
+      {/* ── Section I: Rekomendasi Kebijakan ── */}
+      {loading ? (
+        <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
+      ) : (
+        <PolicyRecommendation alerts={alerts} />
       )}
     </div>
   );
