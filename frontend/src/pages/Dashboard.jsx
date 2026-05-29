@@ -32,6 +32,7 @@ import KpiCard from "../components/KpiCard";
 import GrafikHistoris from "../components/GrafikHistoris";
 import GrafikPrediksi from "../components/GrafikPrediksi";
 import IndonesiaMap from "../components/IndonesiaMap";
+import DistributionOptimizer from "../components/DistributionOptimizer";
 import AlertCard from "../components/AlertCard";
 import {
   fetchAlert,
@@ -496,55 +497,12 @@ export default function Dashboard({ onAlertsLoaded }) {
       </div>
 
       {/* ── Section E: Distribution Recommendations ── */}
-      <div className="distrib-card">
-        <div className="distrib-card-header">
-          <Truck size={16} color="#10B981" />
-          <span className="distrib-card-title">
-            🚚 Rekomendasi Distribusi Minggu Ini
-          </span>
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 11,
-              color: "var(--text-muted)",
-            }}
-          >
-            Mock data • Updated minggu ini
-          </span>
-        </div>
-        {DISTRIB_MOCK.map((d, i) => (
-          <div className="distrib-item" key={i}>
-            <div className="distrib-rank">{i + 1}</div>
-            <div className="distrib-route">
-              <div className="distrib-route-name">
-                {d.from} → {d.to}{" "}
-                <span
-                  style={{
-                    fontWeight: 400,
-                    color: "var(--text-secondary)",
-                    fontSize: 12,
-                  }}
-                >
-                  ({d.komoditas})
-                </span>
-              </div>
-              <div className="distrib-route-meta">
-                <span>
-                  Margin: <b>{formatRupiah(d.margin)}/kg</b>
-                </span>
-                <span>
-                  ROI: <b>{d.roi}%</b>
-                </span>
-              </div>
-            </div>
-            <span
-              className={`badge ${d.status === "open" ? "badge-success" : "badge-warning"}`}
-            >
-              {d.status === "open" ? "✅ Terbuka" : "⚠️ Moderate"}
-            </span>
-          </div>
-        ))}
-      </div>
+      <DistributionOptimizer 
+        komoditasList={KOMODITAS_LIST} 
+        selKomoditas={selKomoditas} 
+        onKomoditasChange={setSelKomoditas} 
+        semuaProv={semuaProv} 
+      />
 
       {/* ── Section F: Price Trend Chart ── */}
       <div className="chart-card" style={{ marginBottom: 24 }}>
