@@ -35,6 +35,7 @@ import IndonesiaMap from "../components/IndonesiaMap";
 import DistributionOptimizer from "../components/DistributionOptimizer";
 import EarlyWarningSystem from "../components/EarlyWarningSystem";
 import PolicyRecommendation from "../components/PolicyRecommendation";
+import AICommodityIntelligence from "../components/AICommodityIntelligence";
 import AlertCard from "../components/AlertCard";
 import {
   fetchAlert,
@@ -604,9 +605,16 @@ export default function Dashboard({ onAlertsLoaded }) {
 
       {/* ── Section I: Rekomendasi Kebijakan ── */}
       {loading ? (
-        <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
+        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
       ) : (
         <PolicyRecommendation alerts={alerts} />
+      )}
+
+      {/* ── Section J: AI Commodity Intelligence ── */}
+      {loading ? (
+        <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
+      ) : (
+        <AICommodityIntelligence alerts={alerts} />
       )}
     </div>
   );
