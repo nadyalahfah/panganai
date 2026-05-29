@@ -30,6 +30,8 @@ import {
 import MetricCard from "../components/MetricCard";
 import KpiCard from "../components/KpiCard";
 import GrafikHistoris from "../components/GrafikHistoris";
+import GrafikPrediksi from "../components/GrafikPrediksi";
+import IndonesiaMap from "../components/IndonesiaMap";
 import AlertCard from "../components/AlertCard";
 import {
   fetchAlert,
@@ -49,6 +51,12 @@ const KOMODITAS_LIST = [
   "Minyak Goreng Curah",
   "Cabai Merah Keriting",
 ];
+
+const HET_MOCK = {
+  "Beras Medium I": 10900,
+  "Minyak Goreng Curah": 14000,
+  "Cabai Merah Keriting": 45000,
+};
 
 const DISTRIB_MOCK = [
   {
@@ -108,7 +116,7 @@ export default function Dashboard({ onAlertsLoaded }) {
     historis: [],
   });
   const [selKomoditas, setSelKomoditas] = useState(KOMODITAS_LIST[0]);
-  const [geoMode, setGeoMode] = useState("bar"); // 'bar' | 'map'
+  const [geoMode, setGeoMode] = useState("forecast"); // 'forecast' | 'map'
   const [predPeriod, setPredPeriod] = useState("30"); // '7' | '30'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -340,91 +348,41 @@ export default function Dashboard({ onAlertsLoaded }) {
         </div>
       </div>
 
-      {/* ── Section B: Geospatial Bar Chart ── */}
+      {/* ── Section B: Forecast & Map ── */}
       <div className="chart-card" style={{ marginBottom: 24 }}>
         <div className="chart-card-header">
           <div className="chart-card-title">
-            <BarChart2 size={16} /> Harga per Provinsi — {selKomoditas}
+            <TrendingUp size={16} /> Prediksi Harga Komoditas — {selKomoditas}
           </div>
           <div className="toggle-group">
             <button
-              className={`toggle-btn-item${geoMode === "bar" ? " active" : ""}`}
-              onClick={() => setGeoMode("bar")}
+              className={`toggle-btn-item${geoMode === "forecast" ? " active" : ""}`}
+              onClick={() => setGeoMode("forecast")}
             >
-              Bar Chart
+              Prediksi Harga
             </button>
             <button
               className={`toggle-btn-item${geoMode === "map" ? " active" : ""}`}
               onClick={() => setGeoMode("map")}
             >
-              Peta
+              Peta Risiko
             </button>
           </div>
         </div>
 
-        {loading || barData.length === 0 ? (
+        {loading || predChart.harian.length === 0 ? (
           <div className="skeleton" style={{ height: 340, borderRadius: 8 }} />
-        ) : geoMode === "bar" ? (
-          <ResponsiveContainer width="100%" height={340}>
-            <ReBarChart
-              data={barData}
-              layout="vertical"
-              margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                horizontal={false}
-                stroke="#F3F4F6"
-              />
-              <XAxis
-                type="number"
-                tickFormatter={formatRupiahShort}
-                tick={{ fontSize: 10, fill: "#9CA3AF" }}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                tick={{ fontSize: 10, fill: "#6B7280" }}
-                width={110}
-              />
-              <Tooltip content={<BarTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar
-                dataKey="harga"
-                name="Harga Saat Ini"
-                fill="#3B82F6"
-                radius={[0, 4, 4, 0]}
-              />
-              <Bar
-                dataKey="prediksi"
-                name="Prediksi 7H"
-                fill="#F97316"
-                radius={[0, 4, 4, 0]}
-                fillOpacity={0.7}
-              />
-            </ReBarChart>
-          </ResponsiveContainer>
+        ) : geoMode === "forecast" ? (
+          <GrafikPrediksi
+            historis={predChart.historis}
+            prediksi={predChart.harian.slice(0, 30)}
+            komoditas={selKomoditas}
+            het={HET_MOCK[selKomoditas]}
+            historyDays={45}
+            tanggalHariIni={new Date().toISOString().split('T')[0]}
+          />
         ) : (
-          <div
-            style={{
-              height: 340,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "var(--gray-50)",
-              borderRadius: 8,
-              color: "var(--text-muted)",
-              fontSize: 13,
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
-            <Map size={32} style={{ opacity: 0.3 }} />
-            <span>Peta Choropleth — Coming Soon</span>
-            <span style={{ fontSize: 11 }}>
-              Gunakan Bar Chart untuk visualisasi data
-            </span>
-          </div>
+          <IndonesiaMap data={barData} komoditas={selKomoditas} />
         )}
       </div>
 
