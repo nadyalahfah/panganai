@@ -44,8 +44,8 @@ const AI_INSIGHTS = {
 export default function Prediksi() {
   const [komoditasList, setKomoditasList] = useState([])
   const [provinsiList, setProvinsiList] = useState([])
-  const [selKomoditas, setSelKomoditas] = useState('Beras Medium I')
-  const [selProvinsi, setSelProvinsi] = useState('DKI Jakarta')
+  const [selKomoditas, setSelKomoditas] = useState('')
+  const [selProvinsi, setSelProvinsi] = useState('')
   const [prediksi, setPrediksi] = useState(null)
   const [historis, setHistoris] = useState([])
   const [semuaProv, setSemuaProv] = useState([])
@@ -57,10 +57,19 @@ export default function Prediksi() {
   useEffect(() => {
     async function loadFilters() {
       try {
-        const [kom, prov] = await Promise.all([fetchKomoditas(), fetchProvinsi()])
+        const [komData, provData] = await Promise.all([fetchKomoditas(), fetchProvinsi()])
+        const kom = komData.map(k => k.nama || k.slug || k).sort((a, b) => a.localeCompare(b));
+        const prov = provData.map(p => p.nama || p.slug || p).sort((a, b) => a.localeCompare(b));
         setKomoditasList(kom)
         setProvinsiList(prov)
-        loadData('Beras Medium I', 'DKI Jakarta')
+        
+        const defaultKom = kom.length > 0 ? kom[0] : 'Beras Medium I';
+        const defaultProv = prov.length > 0 ? prov[0] : 'DKI Jakarta';
+        
+        setSelKomoditas(defaultKom)
+        setSelProvinsi(defaultProv)
+        
+        loadData(defaultKom, defaultProv)
         setInitialized(true)
       } catch (err) {
         setError(err.message)

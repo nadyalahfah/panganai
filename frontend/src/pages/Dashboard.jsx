@@ -42,23 +42,13 @@ import {
   fetchProvinsi,
   fetchPrediksiSemua,
   fetchPrediksi,
+  fetchKomoditas,
   formatRupiah,
   formatPct,
   formatTanggalShort,
   formatRupiahShort,
 } from "../api";
 
-const KOMODITAS_LIST = [
-  "Beras Medium I",
-  "Minyak Goreng Curah",
-  "Cabai Merah Keriting",
-];
-
-const HET_MOCK = {
-  "Beras Medium I": 10900,
-  "Minyak Goreng Curah": 14000,
-  "Cabai Merah Keriting": 45000,
-};
 
 const DISTRIB_MOCK = [
   {
@@ -107,6 +97,7 @@ function BarTooltip({ active, payload, label }) {
 }
 
 export default function Dashboard({ onAlertsLoaded }) {
+  const [komoditasList, setKomoditasList] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [stats, setStats] = useState([]);
   const [provinsiList, setProvinsiList] = useState([]);
@@ -117,7 +108,7 @@ export default function Dashboard({ onAlertsLoaded }) {
     harian: [],
     historis: [],
   });
-  const [selKomoditas, setSelKomoditas] = useState(KOMODITAS_LIST[0]);
+  const [selKomoditas, setSelKomoditas] = useState("");
   const [geoMode, setGeoMode] = useState("forecast"); // 'forecast' | 'map'
   const [predPeriod, setPredPeriod] = useState("30"); // '7' | '30'
   const [loading, setLoading] = useState(true);
@@ -129,18 +120,25 @@ export default function Dashboard({ onAlertsLoaded }) {
       try {
         setLoading(true);
         setError(null);
-        const [alertData, statsData, provData] = await Promise.all([
+        const [alertData, statsData, provData, komoditasData] = await Promise.all([
           fetchAlert(),
           fetchStatistikNasional(),
           fetchProvinsi(),
+          fetchKomoditas(),
         ]);
-        setAlerts(alertData);
+setAlerts(alertData);
         onAlertsLoaded?.(alertData.filter((a) => a.kenaikan_pct > 10));
         setStats(statsData);
         setProvinsiList(provData);
 
+        const fetchedKom = komoditasData.map(k => k.nama || k.slug || k).sort((a, b) => a.localeCompare(b));
+        setKomoditasList(fetchedKom);
+        if (fetchedKom.length > 0) {
+          setSelKomoditas(prev => fetchedKom.includes(prev) ? prev : fetchedKom[0]);
+        }
+
         // Historical charts for all 3 commodities (5 provinces each)
-        const chartPromises = KOMODITAS_LIST.map(async (komoditas) => {
+        const chartPromises = fetchedKom.map(async (komoditas) => {
           const allData = [];
           for (const prov of provData.slice(0, 5)) {
             try {
@@ -273,7 +271,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         }}
       >
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <h2>PanganAI Executive Command Center</h2>
+          <div style={{display: "flex", alignItems: "center", gap: 12}}><h2>PanganAI Executive Command Center</h2>{komoditasList.length > 0 && <span style={{background: "#E2E8F0", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#475569"}}>{komoditasList.length} Komoditas Aktif</span>}</div>
           <p>AI-Powered National Food Monitoring & Forecasting</p>
         </div>
       </div>
@@ -306,7 +304,7 @@ export default function Dashboard({ onAlertsLoaded }) {
               />
               <MetricCard
                 label="Komoditas Dipantau"
-                value={KOMODITAS_LIST.length}
+                value={komoditasList.length}
                 icon={Package}
                 color="#10B981"
                 footer="Beras, Minyak, Cabai"
@@ -328,7 +326,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             onChange={(e) => setSelKomoditas(e.target.value)}
             style={{ minWidth: 200 }}
           >
-            {KOMODITAS_LIST.map((k) => (
+            {komoditasList.map((k) => (
               <option key={k} value={k}>
                 {k}
               </option>
@@ -379,7 +377,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             historis={predChart.historis}
             prediksi={predChart.harian.slice(0, 30)}
             komoditas={selKomoditas}
-            het={HET_MOCK[selKomoditas]}
+            het={null}
             historyDays={45}
             tanggalHariIni={new Date().toISOString().split('T')[0]}
           />
@@ -404,7 +402,7 @@ export default function Dashboard({ onAlertsLoaded }) {
 
       {/* ── SECTION 5: Supply & Distribution Optimizer ── */}
       <DistributionOptimizer 
-        komoditasList={KOMODITAS_LIST} 
+        komoditasList={komoditasList} 
         selKomoditas={selKomoditas} 
         onKomoditasChange={setSelKomoditas} 
         semuaProv={semuaProv} 

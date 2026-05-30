@@ -11,6 +11,8 @@ router = APIRouter()
 def get_alert(request: Request):
     engine = getattr(request.app.state, "prediction_engine", settings.PREDICTION_ENGINE)
     if engine == "catboost":
+        if hasattr(request.app.state, "cached_alerts") and request.app.state.cached_alerts is not None:
+            return request.app.state.cached_alerts
         return get_alerts_from_catboost(request.app.state)
 
     return get_sorted_alerts(request.app.state.alerts)

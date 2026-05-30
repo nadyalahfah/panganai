@@ -1,0 +1,10 @@
+Name: catboost
+Version: 1.2.10
+Summary: CatBoost Python Package
+Home-page: https://catboost.ai
+Author: CatBoost Developers
+Author-email: 
+License: Apache License, Version 2.0
+Location: C:\Users\lenovo\AppData\Local\Programs\Python\Python313\Lib\site-packages
+Requires: graphviz, matplotlib, numpy, pandas, plotly, scipy, six
+Required-by: 

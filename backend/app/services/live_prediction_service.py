@@ -23,8 +23,9 @@ def _interpolate_daily_predictions(start_date, start_price: float, end_price: fl
 
 
 def predict_h7(app_state, provinsi, komoditas, jenis_harga=None, level_harga=None):
+    source_df = app_state.latest_feature_df if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None else app_state.feature_df
     latest_row = get_latest_row(
-        df=app_state.feature_df,
+        df=source_df,
         provinsi=provinsi,
         komoditas=komoditas,
         jenis_harga=jenis_harga,
@@ -78,8 +79,9 @@ def _update_recursive_features(sim_row: pd.Series, predicted_price: float):
 
 
 def predict_recursive_30(app_state, provinsi, komoditas, jenis_harga=None, level_harga=None):
+    source_df = app_state.latest_feature_df if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None else app_state.feature_df
     latest_row = get_latest_row(
-        df=app_state.feature_df,
+        df=source_df,
         provinsi=provinsi,
         komoditas=komoditas,
         jenis_harga=jenis_harga,

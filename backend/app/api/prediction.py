@@ -30,8 +30,9 @@ def get_prediksi(komoditas: str, provinsi: str, request: Request):
         raise HTTPException(status_code=404, detail="Slug komoditas/provinsi tidak ditemukan")
 
     if _engine(request) == "catboost":
+        source_df_predict = request.app.state.latest_feature_df if hasattr(request.app.state, "latest_feature_df") and request.app.state.latest_feature_df is not None else request.app.state.feature_df
         result = predict_single(
-            df=request.app.state.feature_df,
+            df=source_df_predict,
             model=request.app.state.model,
             feature_columns=request.app.state.feature_columns,
             provinsi=provinsi_resolved,
@@ -70,6 +71,10 @@ def get_prediksi_semua(komoditas: str, request: Request):
         raise HTTPException(status_code=404, detail="Slug komoditas tidak ditemukan")
 
     if _engine(request) == "catboost":
+        if hasattr(request.app.state, "cached_prediksi_all") and request.app.state.cached_prediksi_all:
+            if komoditas_resolved in request.app.state.cached_prediksi_all:
+                return request.app.state.cached_prediksi_all[komoditas_resolved]
+                
         rows = get_all_province_predictions_legacy_contract(request.app.state, komoditas_resolved)
         return [{**row, "engine": "catboost"} for row in rows]
 

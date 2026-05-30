@@ -3,70 +3,56 @@ import { AlertTriangle, AlertCircle, Info, Activity, ChevronRight, Zap, Target, 
 import { getKomoditasClass } from '../api';
 import SectionWrapper from './SectionWrapper';
 
-const DIST_SOURCES = {
-  "Beras Medium I": "Sulawesi Selatan",
-  "Minyak Goreng Curah": "Jawa Barat",
-  "Cabai Merah Keriting": "Jawa Timur",
-  "Daging Ayam Ras": "Jawa Tengah",
-  "Telur Ayam Ras": "Jawa Timur",
-  "Bawang Merah": "Nusa Tenggara Barat",
-  "Bawang Putih": "DKI Jakarta"
-};
-
 export default function EarlyWarningSystem({ alerts }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
-  const processedAlerts = useMemo(() => {
+const processedAlerts = useMemo(() => {
     if (!alerts) return [];
     
     return alerts.map(a => {
-      const hash = a.provinsi.length + a.komoditas.length + a.kenaikan_pct;
-      const days = (Math.floor(hash) % 3 + 2) * 7; 
-      
       let level = 'Low';
       let colorClass = 'info'; 
       let bg = '#F1F5F9';
       let color = '#64748B';
       let Icon = Info;
-      let action = 'Normal';
-      let cause = 'Dinamika permintaan lokal dalam batas wajar.';
+      let action = 'Monitor';
+      let cause = a.ai_reasoning || 'Fluktuasi dalam batas wajar';
+      let distRec = '';
       
-      if (a.kenaikan_pct > 15) {
+      // Derive action from level if not explicitly provided
+      const risk = (a.risk_level || '').toUpperCase();
+      const pct = a.kenaikan_pct || 0;
+      
+      if (risk === 'CRITICAL' || pct > 15) {
         level = 'Critical';
         colorClass = 'danger';
         bg = '#FEF2F2';
         color = '#EF4444';
         Icon = AlertTriangle;
-        action = 'Prioritize Distribution';
-        cause = 'Indikasi defisit pasokan distributor dan gangguan logistik.';
-      } else if (a.kenaikan_pct >= 10) {
+        action = 'Intervensi Pasokan';
+        if (!cause || cause.length < 10) cause = 'Indikasi defisit pasokan serius.';
+      } else if (risk === 'HIGH' || pct >= 10) {
         level = 'High';
         colorClass = 'warning';
         bg = '#FFF7ED';
         color = '#F97316';
         Icon = AlertCircle;
-        action = 'Increase Monitoring';
-        cause = 'Tren penurunan stok di pedagang grosir mulai terlihat.';
-      } else if (a.kenaikan_pct >= 5) {
+        action = 'Inspeksi Lapangan';
+        if (!cause || cause.length < 10) cause = 'Tren kenaikan harga signifikan.';
+      } else if (risk === 'WATCH' || pct >= 5) {
         level = 'Medium';
         colorClass = 'info';
         bg = '#FEF9C3';
         color = '#CA8A04';
         Icon = Info;
-        action = 'Monitor Trend';
-        cause = 'Fluktuasi harga mulai terlihat di beberapa pasar turunan.';
+        action = 'Monitor Lanjut';
+        if (!cause || cause.length < 10) cause = 'Gejolak harga minor terdeteksi.';
       }
 
-      const sourceProv = DIST_SOURCES[a.komoditas] || "Jawa Timur";
-      let distRec = `Prioritaskan distribusi dari wilayah surplus (${sourceProv}).`;
-      if (a.provinsi.includes(sourceProv)) {
-        distRec = `Optimalkan penyerapan panen lokal dari sentra produksi.`;
-      }
-      
       return {
-        ...a, level, colorClass, bg, color, Icon, days, action, cause, distRec
+        ...a, level, colorClass, bg, color, Icon, action, cause, distRec, days: 7
       };
-    }).sort((a, b) => b.kenaikan_pct - a.kenaikan_pct);
+    }).sort((a, b) => (b.kenaikan_pct || 0) - (a.kenaikan_pct || 0));
   }, [alerts]);
 
   const activeAlert = processedAlerts[activeIdx] || null;

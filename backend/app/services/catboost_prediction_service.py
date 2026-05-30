@@ -227,8 +227,9 @@ def predict_all_provinces(
 
 
 def get_prediction_legacy_contract(app_state, komoditas, provinsi):
+    source_df = app_state.latest_feature_df if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None else app_state.feature_df
     full = predict_single(
-        df=app_state.feature_df,
+        df=source_df,
         model=app_state.model,
         feature_columns=app_state.feature_columns,
         provinsi=provinsi,
@@ -255,8 +256,9 @@ def get_prediction_legacy_contract(app_state, komoditas, provinsi):
 
 
 def get_all_province_predictions_legacy_contract(app_state, komoditas):
+    source_df = app_state.latest_feature_df if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None else app_state.feature_df
     return predict_all_provinces(
-        df=app_state.feature_df,
+        df=source_df,
         model=app_state.model,
         feature_columns=app_state.feature_columns,
         komoditas=komoditas,
@@ -265,13 +267,15 @@ def get_all_province_predictions_legacy_contract(app_state, komoditas):
 
 def get_alerts_from_catboost(app_state, kenaikan_min_pct=5.0):
     alerts = []
-    feature_df = app_state.feature_df
-    latest_rows = (
-        feature_df.sort_values("tanggal")
-        .groupby(["provinsi", "komoditas"], as_index=False)
-        .tail(1)
-        .copy()
-    )
+    if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None:
+        latest_rows = app_state.latest_feature_df.copy()
+    else:
+        latest_rows = (
+            app_state.feature_df.sort_values("tanggal")
+            .groupby(["provinsi", "komoditas"], as_index=False)
+            .tail(1)
+            .copy()
+        )
 
     pangan_score_threshold = None
     if "pangan_risk_score" in latest_rows.columns and not latest_rows["pangan_risk_score"].dropna().empty:

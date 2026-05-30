@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from app.core.config import settings
 
 DATASET_FEATURE_PATHS = [
+    settings.DATASET_FEATURE_ENGINEERED_PATH,
     settings.DATA_DIR / "dataset" / "data_to_train" / "final_training_dataset_feature_engineered.csv",
     settings.DATA_DIR / "dataset" / "final_training_dataset_feature_engineered.csv",
 ]
@@ -21,12 +22,52 @@ def _resolve_feature_dataset_path() -> Path:
     )
 
 
-def load_feature_dataset() -> pd.DataFrame:
+def load_feature_dataset(feature_cols: list[str]) -> pd.DataFrame:
     path = _resolve_feature_dataset_path()
-    df = pd.read_csv(path, low_memory=False)
-    if "tanggal" in df.columns:
-        df["tanggal"] = pd.to_datetime(df["tanggal"])
-    return df
+    
+    # Read in chunks to avoid OOM on 446MB file
+    chunks = []
+    group_cols = ["provinsi", "komoditas"]
+    first_chunk = True
+    
+    # 1. Inspect first row to ensure columns exist
+    available_cols = set(pd.read_csv(path, nrows=0).columns)
+    base_cols = ["tanggal", "provinsi", "komoditas", "jenis_harga", "level_harga"]
+    required_cols = list(set([c for c in base_cols if c in available_cols] + feature_cols))
+    
+    missing = [c for c in required_cols if c not in available_cols]
+    if missing:
+        raise RuntimeError(f"Kolom wajib tidak ditemukan di dataset fitur: {missing}")
+    
+    total_rows_processed = 0
+    for chunk in pd.read_csv(path, usecols=required_cols, chunksize=50000, low_memory=False):
+        total_rows_processed += len(chunk)
+        if "tanggal" in chunk.columns:
+            chunk["tanggal"] = pd.to_datetime(chunk["tanggal"])
+            
+        if first_chunk:
+            if "jenis_harga" in chunk.columns:
+                group_cols.append("jenis_harga")
+            if "level_harga" in chunk.columns:
+                group_cols.append("level_harga")
+            first_chunk = False
+            
+        idx = chunk.groupby(group_cols, dropna=False)["tanggal"].idxmax()
+        chunks.append(chunk.loc[idx])
+        
+    if not chunks:
+        return pd.DataFrame()
+        
+    combined = pd.concat(chunks, ignore_index=True)
+    final_idx = combined.groupby(group_cols, dropna=False)["tanggal"].idxmax()
+    final_df = combined.loc[final_idx].copy()
+    
+    import logging
+    logger = logging.getLogger("panganai")
+    logger.info(f"Feature dataset processed: {total_rows_processed:,} rows. Retained: {len(final_df):,} rows.")
+    logger.info(f"Columns loaded: {len(required_cols)}")
+    
+    return final_df
 
 
 def _normalize_text(value: str) -> str:
