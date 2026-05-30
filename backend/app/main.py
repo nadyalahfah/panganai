@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import alert, commodity, health, historical, prediction, statistics
+from app.api import alert, commodity, dashboard, health, historical, prediction, statistics
 from app.core.lifespan import lifespan
 
 app = FastAPI(
-    title="Pangan AI - Monitoring Harga Pangan Indonesia",
+    title="Pangan AI API",
     lifespan=lifespan,
 )
 
@@ -19,6 +19,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(commodity.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
 app.include_router(historical.router, prefix="/api")
 app.include_router(prediction.router, prefix="/api")
 app.include_router(alert.router, prefix="/api")

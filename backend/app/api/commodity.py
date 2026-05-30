@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
 from app.services.dataset_service import (
     get_komoditas_objects,
@@ -9,7 +9,8 @@ router = APIRouter()
 
 
 @router.get("/komoditas")
-def get_komoditas_endpoint(request: Request):
+def get_komoditas_endpoint(request: Request, response: Response):
+    response.headers["Cache-Control"] = "public, max-age=300"
     if hasattr(request.app.state, "cached_komoditas") and request.app.state.cached_komoditas:
         return request.app.state.cached_komoditas
         
@@ -18,7 +19,8 @@ def get_komoditas_endpoint(request: Request):
 
 
 @router.get("/provinsi")
-def get_provinsi_endpoint(request: Request):
+def get_provinsi_endpoint(request: Request, response: Response):
+    response.headers["Cache-Control"] = "public, max-age=300"
     if hasattr(request.app.state, "cached_provinsi") and request.app.state.cached_provinsi:
         return request.app.state.cached_provinsi
         

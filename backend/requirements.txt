@@ -3,3 +3,6 @@ uvicorn
 pandas
 python-multipart
 catboost
+azure-storage-blob
+python-dotenv
+pyarrow

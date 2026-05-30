@@ -312,3 +312,101 @@ Catatan:
 - Expect:
   - HTTP `400`
   - pesan endpoint hanya tersedia saat engine catboost aktif.
+
+## 8) Endpoint Optimasi Fetch (Baru)
+
+1. `GET /api/dashboard/initial`
+- Query: tidak ada
+- Body: tidak ada
+- Fungsi:
+  - Bootstrap data dashboard initial load dalam 1 request
+  - Menggantikan call terpisah ke `/api/komoditas`, `/api/provinsi`, `/api/alert`, `/api/statistik-nasional`
+- Expect:
+
+```json
+{
+  "komoditas": [{"id": 1, "nama": "Beras Kualitas Medium I", "slug": "beras-kualitas-medium-i"}],
+  "provinsi": [{"id": 1, "nama": "Aceh", "slug": "aceh"}],
+  "alert": [],
+  "statistik_nasional": [],
+  "default_selection": {
+    "provinsi": "aceh",
+    "komoditas": "beras-kualitas-medium-i"
+  },
+  "metadata": {
+    "data_source": "catboost",
+    "last_updated": "YYYY-MM-DDTHH:mm:ssZ",
+    "dataset_max_date": "YYYY-MM-DD"
+  }
+}
+```
+
+2. `GET /api/dashboard/detail`
+- Query (required):
+  - `komoditas` string (slug)
+  - `provinsi` string (slug)
+- Body: tidak ada
+- Fungsi:
+  - Detail dashboard per selection dalam 1 request
+  - Menggabungkan data:
+    - prediksi (`/api/prediksi` contract)
+    - historis (`/api/harga-historis` contract)
+    - prediksi semua provinsi (`/api/prediksi-semua` contract)
+- Response:
+
+```json
+{
+  "selection": {
+    "komoditas": "beras-kualitas-medium-i",
+    "provinsi": "aceh"
+  },
+  "historis": [],
+  "prediksi": {
+    "ringkasan": {},
+    "harian": []
+  },
+  "prediksi_semua": [],
+  "recommendation": null
+}
+```
+
+3. `POST /api/harga-historis/batch`
+- Query: tidak ada
+- Body (required):
+
+```json
+{
+  "items": [
+    {"komoditas": "bawang-merah-ukuran-sedang", "provinsi": "aceh"},
+    {"komoditas": "cabai-merah-keriting", "provinsi": "bali"}
+  ],
+  "limit_days": 90
+}
+```
+
+- Fungsi:
+  - Ambil historis banyak pasangan komoditas-provinsi dalam 1 request.
+- Response:
+
+```json
+{
+  "results": {
+    "aceh::bawang-merah-ukuran-sedang": [],
+    "bali::cabai-merah-keriting": []
+  }
+}
+```
+
+4. `POST /api/prediksi-batch`
+- Query: tidak ada
+- Body (required):
+
+```json
+[
+  {"komoditas": "beras-kualitas-medium-i", "provinsi": "aceh"},
+  {"komoditas": "cabai-merah-keriting", "provinsi": "bali"}
+]
+```
+
+- Fungsi:
+  - Ambil prediksi banyak pasangan komoditas-provinsi dalam 1 request.

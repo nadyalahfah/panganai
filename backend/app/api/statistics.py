@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
 from app.core.config import settings
 from app.services.catboost_prediction_service import get_national_statistics_from_catboost
@@ -8,7 +8,8 @@ router = APIRouter()
 
 
 @router.get("/statistik-nasional")
-def get_statistik_nasional(request: Request):
+def get_statistik_nasional(request: Request, response: Response):
+    response.headers["Cache-Control"] = "public, max-age=300"
     engine = getattr(request.app.state, "prediction_engine", settings.PREDICTION_ENGINE)
     if engine == "catboost":
         if hasattr(request.app.state, "cached_statistik_nasional") and request.app.state.cached_statistik_nasional:

@@ -7,23 +7,45 @@ import pandas as pd
 from catboost import CatBoostRegressor
 
 
-class ModelService:
-    @staticmethod
-    def load_model(model_path) -> CatBoostRegressor:
+def load_catboost_model(model_path: str):
+    try:
         path = Path(model_path)
         if not path.exists():
             raise FileNotFoundError(f"CatBoost model file tidak ditemukan: {path}")
+
         model = CatBoostRegressor()
         model.load_model(str(path))
         return model
+    except Exception as exc:
+        raise RuntimeError("Failed to load CatBoost model") from exc
+
+
+def load_feature_columns(feature_path: str):
+    try:
+        path = Path(feature_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Feature columns file tidak ditemukan: {path}")
+
+        with open(path, "rb") as file:
+            feature_columns = pickle.load(file)
+
+        if not isinstance(feature_columns, list):
+            raise ValueError("feature_columns.pkl harus berisi list feature.")
+
+        print(f"Loaded feature columns: {len(feature_columns)}")
+        return feature_columns
+    except Exception as exc:
+        raise RuntimeError("Failed to load feature columns") from exc
+
+
+class ModelService:
+    @staticmethod
+    def load_model(model_path) -> CatBoostRegressor:
+        return load_catboost_model(model_path)
 
     @staticmethod
     def load_feature_columns(feature_columns_path) -> list[str]:
-        path = Path(feature_columns_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Feature columns file tidak ditemukan: {path}")
-        with open(path, "rb") as f:
-            return pickle.load(f)
+        return load_feature_columns(feature_columns_path)
 
     @staticmethod
     def predict(model, x: pd.DataFrame, numeric_fill_values: dict | None = None):

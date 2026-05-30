@@ -36,13 +36,8 @@ import PolicyRecommendation from "../components/PolicyRecommendation";
 import AICommodityIntelligence from "../components/AICommodityIntelligence";
 import AlertCard from "../components/AlertCard";
 import {
-  fetchAlert,
-  fetchStatistikNasional,
-  fetchHargaHistoris,
-  fetchProvinsi,
-  fetchPrediksiSemua,
-  fetchPrediksi,
-  fetchKomoditas,
+  fetchDashboardDetail,
+  fetchDashboardInitial,
   formatRupiah,
   formatPct,
   formatTanggalShort,
@@ -101,95 +96,105 @@ export default function Dashboard({ onAlertsLoaded }) {
   const [alerts, setAlerts] = useState([]);
   const [stats, setStats] = useState([]);
   const [provinsiList, setProvinsiList] = useState([]);
-  const [chartData, setChartData] = useState({});
-  const [semuaProv, setSemuaProv] = useState([]);
-  const [predChart, setPredChart] = useState({
-    ringkasan: {},
-    harian: [],
-    historis: [],
-  });
   const [selKomoditas, setSelKomoditas] = useState("");
+  const [selProvinsi, setSelProvinsi] = useState("");
   const [geoMode, setGeoMode] = useState("forecast"); // 'forecast' | 'map'
   const [predPeriod, setPredPeriod] = useState("30"); // '7' | '30'
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [debouncedSelection, setDebouncedSelection] = useState({
+    komoditas: "",
+    provinsi: "",
+  });
+  const [detailData, setDetailData] = useState(null);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    async function load() {
+    const controller = new AbortController();
+    async function run() {
       try {
-        setLoading(true);
+        setLoadingInitial(true);
         setError(null);
-        const [alertData, statsData, provData, komoditasData] = await Promise.all([
-          fetchAlert(),
-          fetchStatistikNasional(),
-          fetchProvinsi(),
-          fetchKomoditas(),
-        ]);
-setAlerts(alertData);
+        const initData = await fetchDashboardInitial(controller.signal);
+        const alertData = initData.alert || [];
+        const statsData = initData.statistik_nasional || [];
+        const provData = initData.provinsi || [];
+        const komoditasData = initData.komoditas || [];
+        const defaultProv =
+          initData.default_selection?.provinsi || provData?.[0]?.slug || "";
+        const defaultKom =
+          initData.default_selection?.komoditas || komoditasData?.[0]?.slug || "";
+
+        setAlerts(alertData);
         onAlertsLoaded?.(alertData.filter((a) => a.kenaikan_pct > 10));
         setStats(statsData);
         setProvinsiList(provData);
-
-        const fetchedKom = komoditasData.map(k => k.nama || k.slug || k).sort((a, b) => a.localeCompare(b));
-        setKomoditasList(fetchedKom);
-        if (fetchedKom.length > 0) {
-          setSelKomoditas(prev => fetchedKom.includes(prev) ? prev : fetchedKom[0]);
-        }
-
-        // Historical charts for all 3 commodities (5 provinces each)
-        const chartPromises = fetchedKom.map(async (komoditas) => {
-          const allData = [];
-          for (const prov of provData.slice(0, 5)) {
-            try {
-              const d = await fetchHargaHistoris(komoditas, prov);
-              allData.push(...d);
-            } catch {}
-          }
-          return [komoditas, allData];
-        });
-        const results = await Promise.all(chartPromises);
-        const newChartData = {};
-        results.forEach(([k, d]) => {
-          newChartData[k] = d;
-        });
-        setChartData(newChartData);
+        setKomoditasList(komoditasData);
+        setSelKomoditas(defaultKom);
+        setSelProvinsi(defaultProv);
         setLastUpdated(new Date());
       } catch (err) {
-        setError(err.message);
+        if (err.name !== "AbortError") setError(err.message);
       } finally {
-        setLoading(false);
+        setLoadingInitial(false);
       }
     }
-    load();
-  }, []);
+    run();
+    return () => controller.abort();
+  }, [onAlertsLoaded]);
 
-  // Load geospatial / prediction data when commodity changes
   useEffect(() => {
-    async function loadKomoditas() {
-      if (!provinsiList.length) return;
+    const timer = setTimeout(() => {
+      setDebouncedSelection({
+        komoditas: selKomoditas,
+        provinsi: selProvinsi,
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [selKomoditas, selProvinsi]);
+
+  useEffect(() => {
+    if (!debouncedSelection.komoditas || !debouncedSelection.provinsi) return;
+    const controller = new AbortController();
+    async function run() {
       try {
-        const [semua, histData, predData] = await Promise.all([
-          fetchPrediksiSemua(selKomoditas),
-          fetchHargaHistoris(selKomoditas, provinsiList[0]),
-          fetchPrediksi(selKomoditas, provinsiList[0]),
-        ]);
-        setSemuaProv(semua);
-        setPredChart({
-          ringkasan: predData.ringkasan,
-          harian: predData.harian,
-          historis: histData,
-        });
-      } catch {}
+        setLoadingDetail(true);
+        const detail = await fetchDashboardDetail(
+          debouncedSelection.komoditas,
+          debouncedSelection.provinsi,
+          controller.signal,
+        );
+        setDetailData(detail);
+        setLastUpdated(new Date());
+      } catch (err) {
+        if (err.name !== "AbortError") setError(err.message);
+      } finally {
+        setLoadingDetail(false);
+      }
     }
-    loadKomoditas();
-  }, [selKomoditas, provinsiList]);
+    run();
+    return () => controller.abort();
+  }, [debouncedSelection]);
+
+  const predChart = useMemo(
+    () => ({
+      ringkasan: detailData?.prediksi?.ringkasan || {},
+      harian: detailData?.prediksi?.harian || [],
+      historis: detailData?.historis || [],
+    }),
+    [detailData],
+  );
+
+  const semuaProv = detailData?.prediksi_semua || [];
+  const loading = loadingInitial || loadingDetail;
 
   // KPIs from real stats
   const avgNasional = useMemo(() => {
-    const s = stats.find((s) => s.komoditas === selKomoditas);
+    const selectedKomoditasName = komoditasList.find((k) => k.slug === selKomoditas)?.nama;
+    const s = stats.find((x) => x.komoditas === selectedKomoditasName);
     return s?.harga_rata_nasional || null;
-  }, [stats, selKomoditas]);
+  }, [stats, selKomoditas, komoditasList]);
 
   const alertNaikCount = alerts.filter((a) => a.kenaikan_pct > 10).length;
   const alertWarnCount = alerts.filter(
@@ -314,7 +319,7 @@ setAlerts(alertData);
                 value={avgNasional ? formatRupiahShort(avgNasional) : "—"}
                 icon={DollarSign}
                 color="#F97316"
-                footer={selKomoditas}
+                footer={komoditasList.find((k) => k.slug === selKomoditas)?.nama || "-"}
               />
             </>
           )}
@@ -327,8 +332,8 @@ setAlerts(alertData);
             style={{ minWidth: 200 }}
           >
             {komoditasList.map((k) => (
-              <option key={k} value={k}>
-                {k}
+              <option key={k.slug || k.nama} value={k.slug || k.nama}>
+                {k.nama || k.slug}
               </option>
             ))}
           </select>
@@ -376,7 +381,7 @@ setAlerts(alertData);
           <GrafikPrediksi
             historis={predChart.historis}
             prediksi={predChart.harian.slice(0, 30)}
-            komoditas={selKomoditas}
+            komoditas={komoditasList.find((k) => k.slug === selKomoditas)?.nama || selKomoditas}
             het={null}
             historyDays={45}
             tanggalHariIni={new Date().toISOString().split('T')[0]}

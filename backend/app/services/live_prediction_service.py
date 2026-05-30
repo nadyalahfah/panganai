@@ -2,7 +2,11 @@ from datetime import timedelta
 
 import pandas as pd
 
-from app.services.feature_service import build_prediction_matrix, get_latest_row
+from app.services.feature_service import (
+    build_prediction_matrix,
+    get_latest_row,
+    get_latest_row_from_index,
+)
 from app.services.model_service import ModelService
 from app.utils.converters import format_date, safe_float
 
@@ -24,13 +28,21 @@ def _interpolate_daily_predictions(start_date, start_price: float, end_price: fl
 
 def predict_h7(app_state, provinsi, komoditas, jenis_harga=None, level_harga=None):
     source_df = app_state.latest_feature_df if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None else app_state.feature_df
-    latest_row = get_latest_row(
-        df=source_df,
+    latest_row = get_latest_row_from_index(
+        getattr(app_state, "latest_features_by_key", None),
         provinsi=provinsi,
         komoditas=komoditas,
         jenis_harga=jenis_harga,
         level_harga=level_harga,
     )
+    if latest_row is None:
+        latest_row = get_latest_row(
+            df=source_df,
+            provinsi=provinsi,
+            komoditas=komoditas,
+            jenis_harga=jenis_harga,
+            level_harga=level_harga,
+        )
 
     x = build_prediction_matrix(latest_row, app_state.feature_columns)
     pred = ModelService.predict(
@@ -80,13 +92,22 @@ def _update_recursive_features(sim_row: pd.Series, predicted_price: float):
 
 def predict_recursive_30(app_state, provinsi, komoditas, jenis_harga=None, level_harga=None):
     source_df = app_state.latest_feature_df if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None else app_state.feature_df
-    latest_row = get_latest_row(
-        df=source_df,
+    latest_row = get_latest_row_from_index(
+        getattr(app_state, "latest_features_by_key", None),
         provinsi=provinsi,
         komoditas=komoditas,
         jenis_harga=jenis_harga,
         level_harga=level_harga,
-    ).copy()
+    )
+    if latest_row is None:
+        latest_row = get_latest_row(
+            df=source_df,
+            provinsi=provinsi,
+            komoditas=komoditas,
+            jenis_harga=jenis_harga,
+            level_harga=level_harga,
+        )
+    latest_row = latest_row.copy()
 
     current_date = pd.to_datetime(latest_row["tanggal"])
     current_price = float(latest_row.get("harga", 0.0))

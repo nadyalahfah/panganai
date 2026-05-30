@@ -55,6 +55,19 @@ const PROV_COORDS = {
 
 export default function DistributionOptimizer({ komoditasList, selKomoditas, onKomoditasChange, semuaProv }) {
   const [activeRec, setActiveRec] = useState(0);
+  const normalizedKomoditas = useMemo(
+    () =>
+      (komoditasList || []).map((k) =>
+        typeof k === "string"
+          ? { key: k, value: k, label: k }
+          : {
+              key: k.slug || k.nama || String(k.id),
+              value: k.slug || k.nama || String(k.id),
+              label: k.nama || k.slug || String(k.id),
+            },
+      ),
+    [komoditasList],
+  );
 
   const recommendations = useMemo(() => {
     if (!semuaProv || semuaProv.length === 0) return [];
@@ -108,8 +121,10 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
             onChange={(e) => onKomoditasChange(e.target.value)}
             style={{ minWidth: 220, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
           >
-            {komoditasList.map(k => (
-              <option key={k} value={k}>{k}</option>
+            {normalizedKomoditas.map((k) => (
+              <option key={k.key} value={k.value}>
+                {k.label}
+              </option>
             ))}
           </select>
         </div>

@@ -15,35 +15,31 @@ async def root():
 
 @router.get("/api/health")
 def health(request: Request):
-    data_loaded = all(
-        hasattr(request.app.state, attr)
-        for attr in ("df_hasil", "df_harian", "df_semua", "alerts")
-    )
-    model_loaded = getattr(request.app.state, "model", None) is not None and len(
-        getattr(request.app.state, "feature_columns", [])
-    ) > 0
+    model_loaded = bool(getattr(request.app.state, "model_loaded", False))
+    feature_columns = getattr(request.app.state, "feature_columns", [])
+    feature_loaded = isinstance(feature_columns, list) and len(feature_columns) > 0
 
     return {
         "status": "ok",
-        "data_loaded": data_loaded,
+        "storage_ready": bool(getattr(request.app.state, "storage_ready", False)),
+        "dataset_loaded": bool(getattr(request.app.state, "dataset_loaded", False)),
         "model_loaded": model_loaded,
-        "data_source": "csv_snapshot",
+        "feature_loaded": feature_loaded,
     }
 
 
 @router.get("/api/model-info")
 def model_info(request: Request):
-    model_loaded = getattr(request.app.state, "model", None) is not None
-    prediction_engine = getattr(request.app.state, "prediction_engine", "unknown")
+    model_loaded = bool(getattr(request.app.state, "model_loaded", False))
     feature_columns = getattr(request.app.state, "feature_columns", [])
-    feature_df = getattr(request.app.state, "feature_df", None)
+    feature_df = getattr(request.app.state, "df_semua", None)
 
     if feature_df is None or feature_df.empty:
         return {
             "model_loaded": model_loaded,
             "feature_count": len(feature_columns),
-            "prediction_engine": prediction_engine,
             "dataset_rows": 0,
+            "dataset_columns": 0,
             "min_date": None,
             "max_date": None,
             "available_provinsi_count": 0,
@@ -57,8 +53,8 @@ def model_info(request: Request):
     return {
         "model_loaded": model_loaded,
         "feature_count": len(feature_columns),
-        "prediction_engine": prediction_engine,
         "dataset_rows": int(len(feature_df)),
+        "dataset_columns": int(len(feature_df.columns)),
         "min_date": min_date,
         "max_date": max_date,
         "available_provinsi_count": int(feature_df["provinsi"].nunique())

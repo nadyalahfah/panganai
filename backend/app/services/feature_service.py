@@ -75,6 +75,56 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value)
 
 
+def _optional_norm(value):
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    return _normalize_text(value)
+
+
+def build_latest_features_index(df: pd.DataFrame):
+    if df is None or df.empty:
+        return {}
+    index = {}
+    for _, row in df.iterrows():
+        key = (
+            _normalize_text(row.get("provinsi", "")),
+            _normalize_text(row.get("komoditas", "")),
+            _optional_norm(row.get("jenis_harga")),
+            _optional_norm(row.get("level_harga")),
+        )
+        index[key] = row
+    return index
+
+
+def get_latest_row_from_index(
+    feature_index: dict,
+    provinsi: str,
+    komoditas: str,
+    jenis_harga: str | None = None,
+    level_harga: str | None = None,
+):
+    if not feature_index:
+        return None
+    base_key = (
+        _normalize_text(provinsi),
+        _normalize_text(komoditas),
+        _optional_norm(jenis_harga),
+        _optional_norm(level_harga),
+    )
+    row = feature_index.get(base_key)
+    if row is not None:
+        return row
+    fallback_key = (
+        _normalize_text(provinsi),
+        _normalize_text(komoditas),
+        "",
+        "",
+    )
+    return feature_index.get(fallback_key)
+
+
 def _match_commodity(df: pd.DataFrame, komoditas: str) -> str | None:
     exact = df[df["komoditas"] == komoditas]
     if not exact.empty:
