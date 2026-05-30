@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, TrendingDown, Minus, MapPin, Activity, AlertCircle, Bot } from 'lucide-react'
 import SparklineChart from '../components/SparklineChart'
 
 // Real API augmented with mock enrichment data
@@ -106,32 +106,113 @@ export default function TabelHargaHarian() {
     URL.revokeObjectURL(url)
   }
 
+  // --- AI Insights Logic ---
+  const topRising = useMemo(() => data.length > 0 ? data.reduce((max, r) => r.pct > max.pct ? r : max, data[0]) : null, [data])
+  const mostStable = useMemo(() => data.length > 0 ? data.reduce((min, r) => Math.abs(r.pct) < Math.abs(min.pct) ? r : min, data[0]) : null, [data])
+  const highestRiskProvince = useMemo(() => {
+    if (data.length === 0) return 'N/A'
+    const provs = {}
+    data.forEach(r => {
+      if (r.hap_daerah && r.hap_daerah !== 'Nasional') {
+        if (!provs[r.hap_daerah]) provs[r.hap_daerah] = { sum: 0, count: 0 }
+        provs[r.hap_daerah].sum += r.pct
+        provs[r.hap_daerah].count += 1
+      }
+    })
+    let highest = { name: 'N/A', avg: -Infinity }
+    for (const [name, stats] of Object.entries(provs)) {
+      const avg = stats.sum / stats.count
+      if (avg > highest.avg) highest = { name, avg }
+    }
+    return highest.name
+  }, [data])
+  const marketCondition = useMemo(() => {
+    if (data.length === 0) return 'Stable'
+    const avgPct = data.reduce((sum, r) => sum + r.pct, 0) / data.length
+    if (avgPct > 2) return 'High Risk'
+    if (avgPct > 0.5) return 'Watchlist'
+    return 'Stable'
+  }, [data])
+  const aiExplanation = useMemo(() => {
+    if (!topRising) return 'Data tidak tersedia untuk analisis.'
+    const statusText = marketCondition === 'High Risk' ? 'diperlukan operasi pasar segera' : marketCondition === 'Watchlist' ? 'diperlukan monitoring distribusi secara berkala' : 'dinamika masih dalam batas aman'
+    const provText = highestRiskProvince !== 'N/A' ? `${highestRiskProvince} menjadi wilayah dengan risiko kenaikan harga terbesar. ` : ''
+    return `${topRising.komoditas} menunjukkan kenaikan tertinggi dalam periode pengamatan (+${topRising.pct.toFixed(1)}%). ${provText}Kondisi pasar saat ini berada pada status ${marketCondition} sehingga ${statusText}.`
+  }, [topRising, highestRiskProvince, marketCondition])
+
   return (
     <div>
       <div className="page-header">
-        <h2>Tabel Harga Harian</h2>
-        <p>Data harga komoditas pangan terkini dengan perbandingan hari sebelumnya dan Harga Acuan Pemerintah (HAP)</p>
+        <h2>Market Intelligence Center</h2>
+        <p>Eksplorasi harga pangan nasional dan insight AI untuk mendukung pengambilan keputusan.</p>
       </div>
 
-      {/* Summary row */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Naik', count: data.filter(d => d.pct > 2).length, color: 'var(--danger)', icon: TrendingUp },
-          { label: 'Stabil', count: data.filter(d => d.pct >= -1 && d.pct <= 2).length, color: 'var(--warning)', icon: Minus },
-          { label: 'Turun', count: data.filter(d => d.pct < -1).length, color: 'var(--success)', icon: TrendingDown },
-        ].map((s, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '8px 14px',
-          }}>
-            <s.icon size={14} color={s.color} />
-            <span style={{ fontWeight: 600, fontSize: 16, color: s.color }}>{s.count}</span>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Komoditas {s.label}</span>
+      {/* Market Intelligence Summary Cards */}
+      <div className="section-title" style={{ marginBottom: 14 }}>Market Intelligence Summary</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }}>
+        {/* Top Rising */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            <TrendingUp size={14} color="var(--danger)" /> TOP RISING COMMODITY
           </div>
-        ))}
-        <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {topRising ? topRising.komoditas : '-'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600, marginTop: 4 }}>
+            {topRising ? `+${topRising.pct.toFixed(1)}%` : ''}
+          </div>
+        </div>
+
+        {/* Most Stable */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            <Minus size={14} color="var(--success)" /> MOST STABLE COMMODITY
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {mostStable ? mostStable.komoditas : '-'}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, marginTop: 4 }}>
+            {mostStable ? `${mostStable.pct > 0 ? '+' : ''}${mostStable.pct.toFixed(1)}%` : ''}
+          </div>
+        </div>
+
+        {/* Highest Risk Province */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            <MapPin size={14} color="var(--warning)" /> HIGHEST RISK PROVINCE
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {highestRiskProvince}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+            Berdasarkan rata-rata kenaikan
+          </div>
+        </div>
+
+        {/* Market Condition */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            <Activity size={14} color={marketCondition === 'High Risk' ? 'var(--danger)' : marketCondition === 'Watchlist' ? 'var(--warning)' : 'var(--success)'} /> MARKET CONDITION
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: marketCondition === 'High Risk' ? 'var(--danger)' : marketCondition === 'Watchlist' ? 'var(--warning)' : 'var(--success)' }}>
+            {marketCondition}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+            Status agregat komoditas
+          </div>
+        </div>
+      </div>
+
+      {/* AI Market Insight Panel */}
+      <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 10, padding: 16, marginBottom: 24, display: 'flex', gap: 12 }}>
+        <div style={{ background: '#3B82F6', color: 'white', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Bot size={18} />
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#0369A1', marginBottom: 4 }}>AI Market Insight</div>
+          <div style={{ fontSize: 13, color: '#0F172A', lineHeight: 1.6 }}>
+            {aiExplanation}
+          </div>
         </div>
       </div>
 
@@ -172,13 +253,11 @@ export default function TabelHargaHarian() {
               <tr>
                 {[
                   ['komoditas', 'Komoditas'],
-                  ['kategori', 'Kategori'],
-                  ['satuan', 'Satuan'],
-                  ['harga', 'Harga Hari Ini (Rp)'],
-                  ['kemarin', 'Kemarin (Rp)'],
+                  ['harga', 'Harga Hari Ini'],
+                  ['kemarin', 'Kemarin'],
                   ['pct', '% Perubahan'],
-                  [null, 'Tren 7H'],
-                  ['hap', 'HAP (Rp)'],
+                  [null, 'Tren'],
+                  [null, 'Status'],
                 ].map(([key, label]) => (
                   <th key={label} onClick={() => key && handleSort(key)} style={{ cursor: key ? 'pointer' : 'default' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -202,8 +281,6 @@ export default function TabelHargaHarian() {
                       <td>
                         <div style={{ fontWeight: 700, fontSize: 13 }}>{r.komoditas}</div>
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{r.kategori}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{r.satuan}</td>
                       <td className="font-mono" style={{ fontWeight: 700, fontSize: 14 }}>
                         {r.harga.toLocaleString('id-ID')}
                       </td>
@@ -224,18 +301,21 @@ export default function TabelHargaHarian() {
                         <SparklineChart data={r.spark} color={r.sparkColors} />
                       </td>
                       <td>
-                        <div className="font-mono" style={{ fontSize: 12, fontWeight: 600 }}>
-                          {r.hap.toLocaleString('id-ID')}
-                        </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{r.hap_daerah}</div>
+                        <span style={{
+                          padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                          background: r.pct > 2 ? '#FEF2F2' : r.pct < -1 ? '#F0FDF4' : '#FFF7ED',
+                          color: r.pct > 2 ? 'var(--danger)' : r.pct < -1 ? 'var(--success)' : 'var(--warning)',
+                        }}>
+                          {r.pct > 2 ? 'Kritis' : r.pct < -1 ? 'Aman' : 'Waspada'}
+                        </span>
                       </td>
                     </tr>
                     {isExpanded && (
                       <tr key={`detail-${i}`}>
-                        <td colSpan={8} style={{ background: 'rgba(59,130,246,0.03)', padding: '12px 16px' }}>
+                        <td colSpan={6} style={{ background: 'rgba(59,130,246,0.03)', padding: '12px 16px' }}>
                           <div style={{ fontSize: 12, lineHeight: 1.7 }}>
-                            <strong>{r.komoditas}</strong> | Kategori: {r.kategori} &nbsp;·&nbsp;
-                            HAP: Rp {r.hap.toLocaleString('id-ID')}/kg ({r.hap_daerah}) &nbsp;·&nbsp;
+                            <strong>{r.komoditas}</strong> | Kategori: {r.kategori} | Satuan: {r.satuan} &nbsp;·&nbsp;
+                            HAP: Rp {r.hap.toLocaleString('id-ID')}/{r.satuan.replace('/','')} ({r.hap_daerah}) &nbsp;·&nbsp;
                             Variansi vs HAP: <span style={{ color: r.harga > r.hap ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>
                               {r.harga > r.hap ? '+' : ''}{((r.harga - r.hap) / r.hap * 100).toFixed(1)}%
                             </span>

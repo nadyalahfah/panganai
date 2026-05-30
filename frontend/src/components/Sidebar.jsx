@@ -23,22 +23,20 @@ const NAV_GROUPS = [
     label: "AI Analytics",
     items: [
       { to: "/prediksi", label: "Prediksi Harga", icon: TrendingUp },
-      { to: "/demand", label: "Demand Analysis", icon: BarChart2 },
       { to: "/alert", label: "Alert System", icon: Bell },
     ],
   },
   {
     label: "Recommendations",
     items: [
-      { to: "/subsidi", label: "Subsidi Pangan", icon: Gift },
-      { to: "/distribusi", label: "Peluang Distribusi", icon: Truck },
+      { to: "/distribusi", label: "Supply & Distribution", icon: Truck },
     ],
   },
   {
     label: "Data & Reports",
     items: [
-      { to: "/harga-harian", label: "Tabel Harga Harian", icon: Table2 },
-      { to: "/laporan", label: "Laporan & Ekspor", icon: FileText },
+      { to: "/harga-harian", label: "Market Intelligence Center", icon: Table2 },
+      { to: "/laporan", label: "AI Reports Center", icon: FileText },
     ],
   },
 ];
@@ -92,18 +90,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="sidebar-avatar">
-            <PiUserCircle color="#2d2c2cff" size={32} />
-          </div>
-          <div className="sidebar-user-info">
-            <div className="sidebar-user-name">Admin</div>
-            <div className="sidebar-user-role">Analis Kebijakan</div>
-          </div>
-        </div>
-      </div>
+
     </aside>
   );
 }

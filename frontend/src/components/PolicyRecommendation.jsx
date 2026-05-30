@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ShieldCheck, Target, TrendingDown, ArrowRight, Briefcase, Landmark, CheckCircle, ChevronRight, X } from 'lucide-react';
 import { getKomoditasClass } from '../api';
+import SectionWrapper from './SectionWrapper';
 
 const DIST_SOURCES = {
   "Beras Medium I": "Sulawesi Selatan",
@@ -88,14 +89,12 @@ export default function PolicyRecommendation({ alerts }) {
 
   return (
     <>
-      <div className="policy-panel" style={{ marginBottom: 24 }}>
-        {/* FULL WIDTH: Recommendation List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Landmark size={20} color="#0F172A" />
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0 }}>Rekomendasi Kebijakan (AI Policy Engine)</h2>
-          </div>
-          
+      <SectionWrapper
+        icon={Landmark}
+        title="Rekomendasi Kebijakan"
+        subtitle="AI Policy Engine"
+      >
+        <div className="policy-panel">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {recommendations.map((rec, i) => {
               const isActive = activeIdx === i;
@@ -165,7 +164,7 @@ export default function PolicyRecommendation({ alerts }) {
             })}
           </div>
         </div>
-      </div>
+      </SectionWrapper>
 
       {/* DRAWER BACKDROP */}
       <div 

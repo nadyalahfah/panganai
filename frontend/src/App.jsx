@@ -6,8 +6,6 @@ import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
 import Prediksi from './pages/Prediksi'
 import Alert from './pages/Alert'
-import DemandAnalysis from './pages/DemandAnalysis'
-import SubsidiPangan from './pages/SubsidiPangan'
 import PeluangDistribusi from './pages/PeluangDistribusi'
 import TabelHargaHarian from './pages/TabelHargaHarian'
 import LaporanEkspor from './pages/LaporanEkspor'
@@ -36,18 +34,12 @@ function App() {
             transition: 'margin-left 0.25s ease',
           }}
         >
-          <Header
-            collapsed={sidebarCollapsed}
-            sidebarWidth={sidebarWidth}
-            alertCount={alerts.length}
-          />
+
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Dashboard onAlertsLoaded={setAlerts} />} />
               <Route path="/prediksi" element={<Prediksi />} />
               <Route path="/alert" element={<Alert />} />
-              <Route path="/demand" element={<DemandAnalysis />} />
-              <Route path="/subsidi" element={<SubsidiPangan />} />
               <Route path="/distribusi" element={<PeluangDistribusi />} />
               <Route path="/harga-harian" element={<TabelHargaHarian />} />
               <Route path="/laporan" element={<LaporanEkspor />} />

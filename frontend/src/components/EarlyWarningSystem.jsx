@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, AlertCircle, Info, Activity, ChevronRight, Zap, Target, ShieldAlert, Navigation } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, Activity, ChevronRight, Zap, Target, ShieldAlert, Navigation, Bell } from 'lucide-react';
 import { getKomoditasClass } from '../api';
+import SectionWrapper from './SectionWrapper';
 
 const DIST_SOURCES = {
   "Beras Medium I": "Sulawesi Selatan",
@@ -22,30 +23,38 @@ export default function EarlyWarningSystem({ alerts }) {
       const hash = a.provinsi.length + a.komoditas.length + a.kenaikan_pct;
       const days = (Math.floor(hash) % 3 + 2) * 7; 
       
-      let level = 'Informasi';
+      let level = 'Low';
       let colorClass = 'info'; 
       let bg = '#F1F5F9';
       let color = '#64748B';
       let Icon = Info;
-      let action = 'Pantau fluktuasi harian.';
+      let action = 'Normal';
       let cause = 'Dinamika permintaan lokal dalam batas wajar.';
       
       if (a.kenaikan_pct > 15) {
-        level = 'Kritis';
+        level = 'Critical';
         colorClass = 'danger';
         bg = '#FEF2F2';
         color = '#EF4444';
         Icon = AlertTriangle;
-        action = 'Segera lakukan operasi pasar dan percepat distribusi pasokan.';
+        action = 'Prioritize Distribution';
         cause = 'Indikasi defisit pasokan distributor dan gangguan logistik.';
-      } else if (a.kenaikan_pct >= 5) {
-        level = 'Waspada';
+      } else if (a.kenaikan_pct >= 10) {
+        level = 'High';
         colorClass = 'warning';
         bg = '#FFF7ED';
         color = '#F97316';
         Icon = AlertCircle;
-        action = 'Tingkatkan pengawasan stok di pasar induk utama.';
-        cause = 'Tren penurunan stok di pedagang grosir.';
+        action = 'Increase Monitoring';
+        cause = 'Tren penurunan stok di pedagang grosir mulai terlihat.';
+      } else if (a.kenaikan_pct >= 5) {
+        level = 'Medium';
+        colorClass = 'info';
+        bg = '#FEF9C3';
+        color = '#CA8A04';
+        Icon = Info;
+        action = 'Monitor Trend';
+        cause = 'Fluktuasi harga mulai terlihat di beberapa pasar turunan.';
       }
 
       const sourceProv = DIST_SOURCES[a.komoditas] || "Jawa Timur";
@@ -63,7 +72,12 @@ export default function EarlyWarningSystem({ alerts }) {
   const activeAlert = processedAlerts[activeIdx] || null;
 
   return (
-    <div className="ews-panel" style={{ display: 'flex', gap: 20, marginBottom: 24, minHeight: 450 }}>
+    <SectionWrapper
+      icon={Bell}
+      title="Early Warning System"
+      subtitle="Deteksi dini anomali harga dan risiko pasokan"
+    >
+      <div className="ews-panel" style={{ display: 'flex', gap: 20, minHeight: 450 }}>
       {/* LEFT COLUMN: 70% Table */}
       <div style={{ flex: 7, background: 'white', borderRadius: 12, border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--gray-200)', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -86,6 +100,7 @@ export default function EarlyWarningSystem({ alerts }) {
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}>RISIKO</th>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700, textAlign: 'right' }}>Δ HARGA</th>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700, textAlign: 'center' }}>HORIZON</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}>RECOMMENDED ACTION</th>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}></th>
               </tr>
             </thead>
@@ -127,6 +142,9 @@ export default function EarlyWarningSystem({ alerts }) {
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 12, color: '#475569', textAlign: 'center', fontWeight: 500 }}>
                       {a.days} Hari
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>
+                      {a.action}
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <button style={{ 
@@ -210,7 +228,7 @@ export default function EarlyWarningSystem({ alerts }) {
                 <div style={{ fontSize: 13, color: '#1E293B', lineHeight: 1.5, background: `${activeAlert.color}10`, borderLeft: `3px solid ${activeAlert.color}`, padding: '10px 12px', borderRadius: '0 8px 8px 0' }}>
                   {activeAlert.action}
                 </div>
-                {activeAlert.level === 'Kritis' && (
+                {activeAlert.level === 'Critical' && (
                   <div style={{ fontSize: 13, color: '#1E293B', lineHeight: 1.5, background: '#EFF6FF', borderLeft: '3px solid #3B82F6', padding: '10px 12px', borderRadius: '0 8px 8px 0' }}>
                     {activeAlert.distRec}
                   </div>
@@ -225,6 +243,7 @@ export default function EarlyWarningSystem({ alerts }) {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </SectionWrapper>
   );
 }

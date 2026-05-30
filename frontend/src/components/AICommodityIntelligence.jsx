@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BrainCircuit, AlertTriangle, Lightbulb, ShieldAlert, ArrowRight, Activity, Bot } from 'lucide-react';
-import { getKomoditasClass } from '../api';
+import SectionWrapper from './SectionWrapper';
 
 const DIST_SOURCES = {
   "Beras Medium I": "Sulawesi Selatan",
@@ -111,23 +111,13 @@ export default function AICommodityIntelligence({ alerts }) {
   if (!alerts || alerts.length === 0) return null;
 
   return (
-    <div className="ai-intelligence-panel" style={{ background: 'white', borderRadius: 12, border: '1px solid var(--gray-200)', marginBottom: 24, overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ padding: '20px 24px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
-            <Bot size={20} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-              AI Commodity Intelligence
-              <span style={{ fontSize: 10, background: '#3B82F6', color: 'white', padding: '2px 8px', borderRadius: 12, fontWeight: 800 }}>AZURE OPENAI</span>
-            </h2>
-            <div style={{ fontSize: 13, color: '#64748B', fontWeight: 500, marginTop: 2 }}>Executive analyst briefing generator</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <SectionWrapper
+      icon={Bot}
+      title="AI Commodity Intelligence"
+      badge="AZURE OPENAI"
+      subtitle="Executive analyst briefing generator"
+      rightContent={
+        <>
           <span style={{ fontSize: 13, color: '#64748B', fontWeight: 600 }}>Pilih Komoditas:</span>
           <select 
             value={selectedKomoditas} 
@@ -142,11 +132,10 @@ export default function AICommodityIntelligence({ alerts }) {
               <option key={k} value={k}>{k}</option>
             ))}
           </select>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: 24, minHeight: 300 }}>
+        </>
+      }
+    >
+      <div style={{ minHeight: 300 }}>
         {loading || !briefing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div className="skeleton" style={{ height: 100, borderRadius: 8 }} />
@@ -216,6 +205,6 @@ export default function AICommodityIntelligence({ alerts }) {
           </div>
         )}
       </div>
-    </div>
+    </SectionWrapper>
   );
 }

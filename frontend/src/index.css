@@ -64,7 +64,7 @@
   --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
 
   /* Sidebar */
-  --sidebar-width: 268px;
+  --sidebar-width: 240px;
   --sidebar-collapsed-width: 72px;
   --header-height: 64px;
 
@@ -156,7 +156,7 @@ body {
 /* Sidebar logo area */
 .sidebar-logo {
   padding: 20px 16px 16px;
-  border-bottom: 1px solid var(--border-sidebar);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -205,13 +205,25 @@ body {
 /* Sidebar nav */
 .sidebar-nav {
   flex: 1;
-  padding: 12px 8px;
+  padding: 8px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .sidebar-nav-group {
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+/* Subtle separator between groups when collapsed */
+.sidebar.collapsed .sidebar-nav-group:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: var(--border);
 }
 
 .sidebar-nav-group-label {
@@ -220,14 +232,20 @@ body {
   color: var(--gray-500);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  padding: 8px 10px 4px;
+  padding: 8px 10px;
   white-space: nowrap;
   overflow: hidden;
-  transition: opacity 0.2s ease;
+  transition: all 0.2s ease;
+  height: 28px;
+  display: flex;
+  align-items: center;
 }
 
 .sidebar.collapsed .sidebar-nav-group-label {
   opacity: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .nav-link {
@@ -237,7 +255,7 @@ body {
   padding: 0 10px;
   height: 40px;
   border-radius: 6px;
-  color: #252525;
+  color: var(--gray-700);
   text-decoration: none;
   font-size: 13.5px;
   font-weight: 500;
@@ -245,17 +263,17 @@ body {
   white-space: nowrap;
   overflow: hidden;
   position: relative;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #545454;
+  background: var(--gray-100);
+  color: var(--text-primary);
 }
 
 .nav-link.active {
   background: var(--primary-light);
-  color: #1a1a1a;
+  color: var(--primary-dark);
   font-weight: 600;
   padding-left: 7px;
 }
@@ -281,8 +299,8 @@ body {
 
 /* Sidebar toggle */
 .sidebar-toggle {
-  margin: 8px 8px 0;
-  padding: 8px 10px;
+  margin: 12px 8px 4px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -290,14 +308,17 @@ body {
 
 .sidebar.collapsed .sidebar-toggle {
   justify-content: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .toggle-btn {
   width: 28px;
   height: 28px;
-  border: 1px solid var(--border-sidebar);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--gray-400);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--gray-500);
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -308,14 +329,14 @@ body {
 }
 
 .toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
+  background: var(--gray-50);
+  color: var(--text-primary);
 }
 
 /* Sidebar footer */
 .sidebar-footer {
   padding: 12px 8px;
-  border-top: 1px solid var(--border-sidebar);
+  border-top: 1px solid var(--border);
 }
 
 .sidebar-user {
@@ -330,16 +351,13 @@ body {
 }
 
 .sidebar-user:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--gray-100);
 }
 
 .sidebar-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: white;
   flex-shrink: 0;
 }
 
@@ -353,14 +371,14 @@ body {
 }
 
 .sidebar-user-name {
-  font-size: 12px;
-  font-weight: 400;
-  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
 .sidebar-user-role {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--gray-500);
   white-space: nowrap;
 }
@@ -477,7 +495,7 @@ body {
 /* ── Main Content ────────────────────────────────────────────── */
 .main-content {
   flex: 1;
-  margin-top: var(--header-height);
+  margin-top: 0;
   padding: 28px;
   transition: margin-left 0.25s ease;
   min-width: 0;

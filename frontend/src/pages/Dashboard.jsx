@@ -28,8 +28,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import MetricCard from "../components/MetricCard";
-import KpiCard from "../components/KpiCard";
-import GrafikHistoris from "../components/GrafikHistoris";
 import GrafikPrediksi from "../components/GrafikPrediksi";
 import IndonesiaMap from "../components/IndonesiaMap";
 import DistributionOptimizer from "../components/DistributionOptimizer";
@@ -275,13 +273,13 @@ export default function Dashboard({ onAlertsLoaded }) {
         }}
       >
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <h2>Dashboard</h2>
-          <p>Monitoring harga pangan nasional — Data PIHPS Bank Indonesia</p>
+          <h2>PanganAI Executive Command Center</h2>
+          <p>AI-Powered National Food Monitoring & Forecasting</p>
         </div>
       </div>
 
-      {/* ── Section A: KPI Metrics ── */}
-      <div className="flex items-center gap-2">
+      {/* ── SECTION 1: Executive KPI Summary ── */}
+      <div className="flex items-center gap-2" style={{ marginBottom: 24 }}>
         <div className="metrics-grid flex-1 gap-2">
           {loading ? (
             <>
@@ -352,7 +350,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         </div>
       </div>
 
-      {/* ── Section B: Forecast & Map ── */}
+      {/* ── SECTION 2: Commodity Price Forecast ── */}
       <div className="chart-card" style={{ marginBottom: 24 }}>
         <div className="chart-card-header">
           <div className="chart-card-title">
@@ -390,116 +388,21 @@ export default function Dashboard({ onAlertsLoaded }) {
         )}
       </div>
 
-      {/* ── Section C: Status Cards ── */}
-      <div className="status-grid">
-        {/* Prediksi */}
-        <div className="status-card">
-          <div className="status-card-header">
-            <div
-              className="status-card-icon"
-              style={{ background: "rgba(16,185,129,0.1)" }}
-            >
-              <TrendingUp size={18} color="#10B981" />
-            </div>
-            <div className="status-card-title">Prediksi Harga</div>
-          </div>
-          <div className="status-card-body">
-            <div className="status-card-value">
-              {predChart.ringkasan.tren_7h || "—"}
-            </div>
-            <div className="status-card-sub">
-              H+7: {formatRupiah(predChart.ringkasan.prediksi_7h)}
-            </div>
-            <div className="status-card-sub">
-              H+30: {formatRupiah(predChart.ringkasan.prediksi_30h)}
-            </div>
-          </div>
-          <div className="status-card-footer">Model: LSTM + Prophet</div>
-        </div>
+      {/* ── SECTION 3: AI Commodity Intelligence ── */}
+      {loading ? (
+        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
+      ) : (
+        <AICommodityIntelligence alerts={alerts} />
+      )}
 
-        {/* Alert */}
-        <div className="status-card">
-          <div className="status-card-header">
-            <div
-              className="status-card-icon"
-              style={{ background: "rgba(239,68,68,0.1)" }}
-            >
-              <Bell size={18} color="#EF4444" />
-            </div>
-            <div className="status-card-title">Alert System</div>
-          </div>
-          <div className="status-card-body">
-            <div
-              className="status-card-value"
-              style={{ color: "var(--danger)" }}
-            >
-              {alertNaikCount} Kritis
-            </div>
-            <div className="status-card-sub">{alertWarnCount} Peringatan</div>
-            <div className="status-card-sub">
-              {alerts.length - alertNaikCount - alertWarnCount} Info
-            </div>
-          </div>
-          <div className="status-card-footer">
-            Kenaikan prediksi &gt; 30 hari
-          </div>
-        </div>
+      {/* ── SECTION 4: Early Warning System ── */}
+      {loading ? (
+        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
+      ) : (
+        <EarlyWarningSystem alerts={alerts} />
+      )}
 
-        {/* Market Trend */}
-        <div className="status-card">
-          <div className="status-card-header">
-            <div
-              className="status-card-icon"
-              style={{ background: "rgba(249,115,22,0.1)" }}
-            >
-              <Activity size={18} color="#F97316" />
-            </div>
-            <div className="status-card-title">Market Trend</div>
-          </div>
-          <div className="status-card-body">
-            <div className="status-card-value">
-              {stats.filter((s) => s.tren_30h_mayoritas === "NAIK").length >
-              stats.length / 2
-                ? "↑ Mayoritas Naik"
-                : "→ Variatif"}
-            </div>
-            <div className="status-card-sub">
-              {stats.length} komoditas dianalisis
-            </div>
-            <div className="status-card-sub">
-              {provinsiList.length} provinsi dipantau
-            </div>
-          </div>
-          <div className="status-card-footer">Update per hari</div>
-        </div>
-      </div>
-
-      {/* ── Section D: KPI Cards ── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 24,
-        }}
-      >
-        {stats.slice(0, 4).map((s, i) => {
-          const isNaik = s.tren_30h_mayoritas === "NAIK";
-          return (
-            <KpiCard
-              key={s.komoditas}
-              label={s.komoditas}
-              value={formatRupiah(s.harga_rata_nasional)}
-              icon={DollarSign}
-              color={isNaik ? "#EF4444" : "#10B981"}
-              trend={isNaik ? "up" : "down"}
-              trendText={isNaik ? "Tren naik 30H" : "Tren turun 30H"}
-            />
-          );
-        })}
-      </div>
-
-      {/* ── Section E: Distribution Recommendations ── */}
+      {/* ── SECTION 5: Supply & Distribution Optimizer ── */}
       <DistributionOptimizer 
         komoditasList={KOMODITAS_LIST} 
         selKomoditas={selKomoditas} 
@@ -507,114 +410,11 @@ export default function Dashboard({ onAlertsLoaded }) {
         semuaProv={semuaProv} 
       />
 
-      {/* ── Section F: Price Trend Chart ── */}
-      <div className="chart-card" style={{ marginBottom: 24 }}>
-        <div className="chart-card-header">
-          <div className="chart-card-title">
-            📈 Tren Harga & Prediksi — {selKomoditas}
-          </div>
-          <div className="toggle-group">
-            <button
-              className={`toggle-btn-item${predPeriod === "7" ? " active" : ""}`}
-              onClick={() => setPredPeriod("7")}
-            >
-              7 Hari
-            </button>
-            <button
-              className={`toggle-btn-item${predPeriod === "30" ? " active" : ""}`}
-              onClick={() => setPredPeriod("30")}
-            >
-              30 Hari
-            </button>
-          </div>
-        </div>
-        {loading || trendChartData.length === 0 ? (
-          <div className="skeleton" style={{ height: 280, borderRadius: 8 }} />
-        ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart
-              data={trendChartData}
-              margin={{ top: 5, right: 12, left: 0, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-              <XAxis
-                dataKey="tanggal"
-                tickFormatter={formatTanggalShort}
-                tick={{ fontSize: 10, fill: "#9CA3AF" }}
-                interval="preserveStartEnd"
-                minTickGap={50}
-              />
-              <YAxis
-                tickFormatter={formatRupiahShort}
-                tick={{ fontSize: 10, fill: "#9CA3AF" }}
-                width={65}
-              />
-              <Tooltip
-                formatter={(v) => formatRupiah(v)}
-                labelFormatter={formatTanggalShort}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line
-                type="monotone"
-                dataKey="aktual"
-                name="Aktual"
-                stroke="#3B82F6"
-                strokeWidth={2.5}
-                dot={false}
-                connectNulls={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="prediksi"
-                name="Prediksi"
-                stroke="#F97316"
-                strokeWidth={2.5}
-                strokeDasharray="6 4"
-                dot={false}
-                connectNulls={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
-      {/* ── Section G: Historical Charts ── */}
-      <div className="section-header">
-        <div className="section-title">📊 Tren Historis Nasional</div>
-      </div>
-      <div className="charts-grid">
-        {loading ? (
-          <>
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton skeleton-chart" />
-            ))}
-          </>
-        ) : (
-          KOMODITAS_LIST.map((k) => (
-            <GrafikHistoris key={k} data={chartData[k] || []} komoditas={k} />
-          ))
-        )}
-      </div>
-
-      {/* ── Section H: Early Warning System ── */}
-      {loading ? (
-        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
-      ) : (
-        <EarlyWarningSystem alerts={alerts} />
-      )}
-
-      {/* ── Section I: Rekomendasi Kebijakan ── */}
-      {loading ? (
-        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
-      ) : (
-        <PolicyRecommendation alerts={alerts} />
-      )}
-
-      {/* ── Section J: AI Commodity Intelligence ── */}
+      {/* ── SECTION 6: Policy Recommendation Engine ── */}
       {loading ? (
         <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
       ) : (
-        <AICommodityIntelligence alerts={alerts} />
+        <PolicyRecommendation alerts={alerts} />
       )}
     </div>
   );

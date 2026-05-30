@@ -8,10 +8,9 @@ const PAGE_META = {
   '/prediksi': { breadcrumb: ['AI Analytics'], title: 'Prediksi Harga' },
   '/demand': { breadcrumb: ['AI Analytics'], title: 'Demand Analysis' },
   '/alert': { breadcrumb: ['AI Analytics'], title: 'Alert System' },
-  '/subsidi': { breadcrumb: ['Recommendations'], title: 'Subsidi Pangan' },
-  '/distribusi': { breadcrumb: ['Recommendations'], title: 'Peluang Distribusi' },
-  '/harga-harian': { breadcrumb: ['Data & Reports'], title: 'Tabel Harga Harian' },
-  '/laporan': { breadcrumb: ['Data & Reports'], title: 'Laporan & Ekspor' },
+  '/distribusi': { breadcrumb: ['Recommendations'], title: 'Supply & Distribution Optimizer' },
+  '/harga-harian': { breadcrumb: ['Data & Reports'], title: 'Market Intelligence Center' },
+  '/laporan': { breadcrumb: ['Data & Reports'], title: 'AI Reports Center' },
 }
 
 export default function Header({ sidebarWidth, alertCount }) {

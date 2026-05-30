@@ -64,10 +64,17 @@ export default function Alert() {
   const topKomoditas = Object.entries(komoditasCounts).sort((a, b) => b[1] - a[1])[0]
 
   const getUrgencyBadge = (pct) => {
-    if (pct > 15) return <span className="badge badge-danger">🔴 Kritis</span>
-    if (pct > 10) return <span className="badge badge-accent">🟠 Tinggi</span>
-    if (pct > 5) return <span className="badge badge-warning">🟡 Sedang</span>
-    return <span className="badge badge-success">🟢 Rendah</span>
+    if (pct > 15) return <span className="badge badge-danger">🔴 Critical</span>
+    if (pct > 10) return <span className="badge badge-accent">🟠 High</span>
+    if (pct > 5) return <span className="badge badge-warning">🟡 Medium</span>
+    return <span className="badge badge-success">🟢 Low</span>
+  }
+
+  const getRecommendedAction = (pct) => {
+    if (pct > 15) return 'Prioritize Distribution'
+    if (pct > 10) return 'Increase Monitoring'
+    if (pct > 5) return 'Monitor Trend'
+    return 'Normal'
   }
 
   const getRowClass = (pct) => {
@@ -156,10 +163,9 @@ export default function Alert() {
                     ['komoditas', 'Komoditas'],
                     ['provinsi', 'Provinsi'],
                     ['harga_sekarang', 'Harga Saat Ini'],
-                    ['prediksi_30h', 'Prediksi 30H'],
-                    ['kenaikan_pct', 'Kenaikan (%)'],
-                    ['tren_7h', 'Tren 7H'],
-                    [null, 'Urgensi'],
+                    ['kenaikan_pct', 'Forecast Increase (%)'],
+                    [null, 'Risk Level'],
+                    [null, 'Recommended Action'],
                   ].map(([key, label]) => (
                     <th key={label} onClick={() => key && handleSort(key)} style={{ cursor: key ? 'pointer' : 'default' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -177,16 +183,17 @@ export default function Alert() {
                     </td>
                     <td style={{ fontWeight: 600 }}>{a.provinsi}</td>
                     <td className="font-mono">{formatRupiah(a.harga_sekarang)}</td>
-                    <td className="font-mono" style={{ fontWeight: 600 }}>{formatRupiah(a.prediksi_30h)}</td>
                     <td>
                       <span className={`pct-badge ${a.kenaikan_pct > 10 ? 'danger' : a.kenaikan_pct >= 5 ? 'warning' : 'success'}`}>
                         ↑ {formatPct(a.kenaikan_pct)}
                       </span>
                     </td>
-                    <td>
-                      <span className={`tren-badge ${getTrenClass(a.tren_7h)}`}>{a.tren_7h}</span>
-                    </td>
                     <td>{getUrgencyBadge(a.kenaikan_pct)}</td>
+                    <td>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>
+                        {getRecommendedAction(a.kenaikan_pct)}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

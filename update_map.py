@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import os
+
+code = """import React, { useState, useMemo } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import { formatRupiahShort } from '../api';
 
@@ -240,3 +242,7 @@ export default function IndonesiaMap({ data, komoditas }) {
     </div>
   );
 }
+"""
+
+with open('frontend/src/components/IndonesiaMap.jsx', 'w', encoding='utf-8') as f:
+    f.write(code)

@@ -97,9 +97,9 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
   const activeData = recommendations[activeRec];
 
   return (
-    <div className="distrib-optimizer-panel" style={{ display: 'flex', gap: 24, marginBottom: 24, minHeight: 400 }}>
+    <div className="distrib-optimizer-panel" style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, minHeight: 400 }}>
       {/* Left: Map */}
-      <div style={{ flex: 2, background: 'var(--gray-50)', borderRadius: 12, position: 'relative', overflow: 'hidden', border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '100%', background: 'var(--gray-50)', borderRadius: 12, position: 'relative', overflow: 'hidden', border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
           <div style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 8 }}>Distribution Optimizer</div>
           <select 
@@ -183,7 +183,7 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
       </div>
 
       {/* Right: Recommendations */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 16, fontWeight: 'bold' }}>Recommendations</div>
         
         {recommendations.map((rec, i) => (

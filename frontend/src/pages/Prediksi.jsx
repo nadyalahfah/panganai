@@ -34,7 +34,7 @@ const AI_INSIGHTS = {
     body: `Minyak goreng curah memiliki sensitivitas tinggi terhadap harga CPO global. Analisis model:`,
     bullets: [
       'Harga CPO internasional berpengaruh langsung pada harga domestik',
-      'Program subsidi minyak goreng curah memoderasi kenaikan harga',
+      'Program intervensi minyak goreng curah memoderasi kenaikan harga',
       'Stok nasional saat ini dalam kondisi mencukupi kebutuhan 3 bulan ke depan',
     ],
     rekomendasi: 'Monitor fluktuasi harga CPO global dan siapkan mekanisme buffer stock di daerah defisit.',
