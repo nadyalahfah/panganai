@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Search, Download, ChevronUp, ChevronDown, ChevronsUpDown, TrendingUp, TrendingDown, Minus, MapPin, Activity, AlertCircle, Bot } from 'lucide-react'
 import SparklineChart from '../components/SparklineChart'
 
@@ -271,9 +271,8 @@ export default function TabelHargaHarian() {
               {data.map((r, i) => {
                 const isExpanded = expandedRow === i
                 return (
-                  <>
+                  <React.Fragment key={r.komoditas}>
                     <tr
-                      key={r.komoditas}
                       className={getRowClass(r.pct)}
                       onClick={() => setExpandedRow(isExpanded ? null : i)}
                       style={{ cursor: 'pointer' }}
@@ -324,7 +323,7 @@ export default function TabelHargaHarian() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 )
               })}
             </tbody>

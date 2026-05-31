@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Truck, Target, BarChart2, RouteIcon, ChevronUp, ChevronDown, ChevronsUpDown, Filter, Clock } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
@@ -264,8 +264,8 @@ export default function PeluangDistribusi() {
                 const riskCfg = RISK_CONFIG[r.risk]
                 const isExpanded = expandedRow === r.rank
                 return (
-                  <>
-                    <tr key={r.rank} style={{ cursor: 'pointer' }} onClick={() => setExpandedRow(isExpanded ? null : r.rank)}>
+                  <React.Fragment key={r.rank}>
+                    <tr style={{ cursor: 'pointer' }} onClick={() => setExpandedRow(isExpanded ? null : r.rank)}>
                       <td>
                         <div style={{
                           width: 28, height: 28, borderRadius: 7, background: 'var(--primary-light)',
@@ -330,7 +330,7 @@ export default function PeluangDistribusi() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 )
               })}
             </tbody>
