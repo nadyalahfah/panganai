@@ -4,7 +4,7 @@ import { formatRupiahShort } from '../api';
 
 const geoUrl = '/indonesia-province-simple.json';
 
-export default function IndonesiaMap({ data, komoditas }) {
+export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
   const [hoverRegion, setHoverRegion] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [selectedProv, setSelectedProv] = useState(null);
@@ -14,19 +14,29 @@ export default function IndonesiaMap({ data, komoditas }) {
     const mapData = {};
     if (!data) return mapData;
     data.forEach(d => {
-      const normalizedName = d.name.toUpperCase().trim();
+      let normalizedName = d.name.toUpperCase().trim();
+      
+      // Alias mapping for GeoJSON compatibility
+      const aliases = {
+        "KEPULAUAN BANGKA BELITUNG": "BANGKA BELITUNG",
+      };
+      if (aliases[normalizedName]) {
+        normalizedName = aliases[normalizedName];
+      }
+
       const changePct = ((d.prediksi - d.harga) / d.harga) * 100;
+      const absChange = Math.abs(changePct);
       
       let status = 'Safe';
       let color = '#10B981'; // Green
       
-      if (changePct > 20) {
+      if (absChange >= 20) {
         status = 'Critical';
         color = '#EF4444'; // Red
-      } else if (changePct > 10) {
+      } else if (absChange >= 10) {
         status = 'High Risk';
         color = '#F97316'; // Orange
-      } else if (changePct > 5) {
+      } else if (absChange >= 5) {
         status = 'Watch';
         color = '#EAB308'; // Yellow
       }
@@ -160,19 +170,19 @@ export default function IndonesiaMap({ data, komoditas }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 12, height: 12, borderRadius: 2, background: '#10B981' }}></div>
-          <span>Safe (&lt; 5%)</span>
+          <span>Safe (&lt; 5% Change)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 12, height: 12, borderRadius: 2, background: '#EAB308' }}></div>
-          <span>Watch (5–10%)</span>
+          <span>Watch (5–10% Change)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 12, height: 12, borderRadius: 2, background: '#F97316' }}></div>
-          <span>High Risk (10–20%)</span>
+          <span>High Risk (10–20% Change)</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 12, height: 12, borderRadius: 2, background: '#EF4444' }}></div>
-          <span>Critical (&gt; 20%)</span>
+          <span>Critical (&gt; 20% Change)</span>
         </div>
       </div>
 
@@ -213,7 +223,7 @@ export default function IndonesiaMap({ data, komoditas }) {
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Forecast Price:</span>
+            <span style={{ color: 'var(--text-muted)' }}>Forecast (+{horizon} Days):</span>
             <span style={{ fontWeight: 500 }}>
               {hoverRegion.prediksi > 0 ? formatRupiahShort(hoverRegion.prediksi) : '—'}
             </span>

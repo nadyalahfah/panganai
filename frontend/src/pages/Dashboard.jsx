@@ -99,6 +99,7 @@ export default function Dashboard({ onAlertsLoaded }) {
   const [selKomoditas, setSelKomoditas] = useState("");
   const [selProvinsi, setSelProvinsi] = useState("");
   const [geoMode, setGeoMode] = useState("forecast"); // 'forecast' | 'map'
+  const [mapHorizon, setMapHorizon] = useState(7); // 1, 7, 30
   const [predPeriod, setPredPeriod] = useState("30"); // '7' | '30'
   const [lastUpdated, setLastUpdated] = useState(null);
   const [debouncedSelection, setDebouncedSelection] = useState({
@@ -212,6 +213,15 @@ export default function Dashboard({ onAlertsLoaded }) {
         prediksi: r.prediksi_7h,
       }));
   }, [semuaProv]);
+
+  // Full data for map without truncation
+  const mapData = useMemo(() => {
+    return (semuaProv || []).map((r) => ({
+      name: r.provinsi,
+      harga: r.harga_sekarang,
+      prediksi: mapHorizon === 1 ? r.prediksi_1h : mapHorizon === 7 ? r.prediksi_7h : r.prediksi_30h,
+    }));
+  }, [semuaProv, mapHorizon]);
 
   // Prediction trend chart
   const trendChartData = useMemo(() => {
@@ -360,6 +370,18 @@ export default function Dashboard({ onAlertsLoaded }) {
             <TrendingUp size={16} /> Prediksi Harga Komoditas — {selKomoditas}
           </div>
           <div className="toggle-group">
+            {geoMode === "map" && (
+              <select 
+                className="filter-select" 
+                value={mapHorizon} 
+                onChange={(e) => setMapHorizon(Number(e.target.value))}
+                style={{ marginRight: 8, padding: "4px 8px", fontSize: 12 }}
+              >
+                <option value={1}>1 Day</option>
+                <option value={7}>7 Days</option>
+                <option value={30}>30 Days</option>
+              </select>
+            )}
             <button
               className={`toggle-btn-item${geoMode === "forecast" ? " active" : ""}`}
               onClick={() => setGeoMode("forecast")}
@@ -387,7 +409,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             tanggalHariIni={new Date().toISOString().split('T')[0]}
           />
         ) : (
-          <IndonesiaMap data={barData} komoditas={selKomoditas} />
+          <IndonesiaMap data={mapData} komoditas={selKomoditas} horizon={mapHorizon} />
         )}
       </div>
 

@@ -50,6 +50,10 @@ def get_all_province_predictions(df_hasil, komoditas):
         pred7 = safe_float(row["prediksi_7h"])
         pred30 = safe_float(row["prediksi_30h"])
 
+        # Create an interpolated 1 day prediction for CSV fallback
+        pred1 = harga + ((pred7 - harga) * 1/7) if harga and pred7 else harga
+
+        ubah_1_pct = round((pred1 - harga) / harga * 100, 1) if harga and pred1 else 0
         ubah_7_pct = round((pred7 - harga) / harga * 100, 1) if harga and pred7 else 0
         ubah_30_pct = round((pred30 - harga) / harga * 100, 1) if harga and pred30 else 0
 
@@ -57,10 +61,12 @@ def get_all_province_predictions(df_hasil, komoditas):
             {
                 "provinsi": row["provinsi"],
                 "harga_sekarang": harga,
+                "prediksi_1h": pred1,
                 "prediksi_7h": pred7,
                 "prediksi_30h": pred30,
                 "tren_7h": row["tren_7h"],
                 "tren_30h": row["tren_30h"],
+                "ubah_1_pct": ubah_1_pct,
                 "ubah_7_pct": ubah_7_pct,
                 "ubah_30_pct": ubah_30_pct,
             }
