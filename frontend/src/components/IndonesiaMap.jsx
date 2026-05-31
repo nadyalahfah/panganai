@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import { formatRupiahShort } from '../api';
+import { formatRupiah, formatTanggalFull } from '../api';
 
 const geoUrl = '/indonesia-province-simple.json';
 
-export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
+export default function IndonesiaMap({ data, komoditas, horizon = 7, baseDate }) {
   const [hoverRegion, setHoverRegion] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [selectedProv, setSelectedProv] = useState(null);
@@ -51,6 +51,32 @@ export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
     return mapData;
   }, [data]);
 
+  const updateTooltipPos = (clientX, clientY) => {
+    const tooltipWidth = 260; // Estimated max width
+    const tooltipHeight = 280; // Estimated height
+    const margin = 15;
+
+    let x = clientX + margin;
+    let y = clientY + margin;
+
+    // Right edge detection
+    if (x + tooltipWidth > window.innerWidth) {
+      x = clientX - tooltipWidth - margin;
+    }
+
+    // Bottom edge detection
+    if (y + tooltipHeight > window.innerHeight) {
+      y = window.innerHeight - tooltipHeight - margin;
+    }
+
+    // Top edge detection
+    if (y < margin) {
+      y = margin;
+    }
+
+    setTooltipPos({ x, y });
+  };
+
   const handleMouseEnter = (geo, e) => {
     const provName = geo.properties.Propinsi.toUpperCase().trim();
     const provData = provDataMap[provName] || {
@@ -63,11 +89,11 @@ export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
     };
     
     setHoverRegion({ ...provData, rawName: geo.properties.Propinsi });
-    setTooltipPos({ x: e.clientX, y: e.clientY });
+    updateTooltipPos(e.clientX, e.clientY);
   };
 
   const handleMouseMove = (e) => {
-    setTooltipPos({ x: e.clientX, y: e.clientY });
+    updateTooltipPos(e.clientX, e.clientY);
   };
 
   const handleMouseLeave = () => {
@@ -82,6 +108,17 @@ export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
     } else {
       setSelectedProv(provName);
     }
+  };
+
+  let currentDateStr = 'Today';
+  if (baseDate) {
+    currentDateStr = formatTanggalFull(baseDate);
+  }
+
+  const getChangeIcon = (val) => {
+    if (val > 0) return '▲';
+    if (val < 0) return '▼';
+    return '-';
   };
 
   return (
@@ -190,8 +227,8 @@ export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
       {hoverRegion && (
         <div style={{
           position: 'fixed',
-          top: tooltipPos.y + 15,
-          left: tooltipPos.x + 15,
+          top: tooltipPos.y,
+          left: tooltipPos.x,
           background: 'white',
           padding: 12,
           borderRadius: 8,
@@ -201,42 +238,50 @@ export default function IndonesiaMap({ data, komoditas, horizon = 7 }) {
           zIndex: 1000,
           minWidth: 200
         }}>
-          <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>
+          <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 6 }}>
             {hoverRegion.name}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>
             Commodity: <span style={{ fontWeight: 500, color: '#111827' }}>{komoditas}</span>
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Status:</span>
+          <div style={{ fontSize: 12, marginBottom: 2 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Status: </span>
             <span style={{ fontWeight: 'bold', color: hoverRegion.color }}>
               {hoverRegion.status}
             </span>
           </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Current Price:</span>
-            <span style={{ fontWeight: 500 }}>
-              {hoverRegion.harga > 0 ? formatRupiahShort(hoverRegion.harga) : '—'}
-            </span>
+
+          <div style={{ fontSize: 12, marginBottom: 12 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Data As Of: </span>
+            <span style={{ fontWeight: 500, color: '#111827' }}>{currentDateStr}</span>
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Forecast (+{horizon} Days):</span>
-            <span style={{ fontWeight: 500 }}>
-              {hoverRegion.prediksi > 0 ? formatRupiahShort(hoverRegion.prediksi) : '—'}
-            </span>
+          <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 12 }}>
+              <div style={{ color: 'var(--text-muted)', marginBottom: 2 }}>Current Price</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                {hoverRegion.harga > 0 ? formatRupiah(hoverRegion.harga) : '—'}
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ fontSize: 12, marginBottom: 12 }}>
+            <div style={{ color: 'var(--text-muted)', marginBottom: 2 }}>Forecast (+{horizon} Days)</div>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
+              {hoverRegion.prediksi > 0 ? formatRupiah(hoverRegion.prediksi) : '—'}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--gray-100)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Change:</span>
-            <span style={{ 
+          <div style={{ fontSize: 12 }}>
+            <div style={{ color: 'var(--text-muted)', marginBottom: 2 }}>Change</div>
+            <div style={{ 
               fontWeight: 'bold', 
+              fontSize: 14,
               color: hoverRegion.changePct > 0 ? '#EF4444' : hoverRegion.changePct < 0 ? '#10B981' : '#6B7280' 
             }}>
-              {hoverRegion.changePct > 0 ? '+' : ''}{hoverRegion.changePct.toFixed(1)}%
-            </span>
+              {getChangeIcon(hoverRegion.changePct)} {Math.abs(hoverRegion.changePct).toFixed(2)}%
+            </div>
           </div>
           
           {hoverRegion.score && (

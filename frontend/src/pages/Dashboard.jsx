@@ -102,6 +102,7 @@ export default function Dashboard({ onAlertsLoaded }) {
   const [mapHorizon, setMapHorizon] = useState(7); // 1, 7, 30
   const [predPeriod, setPredPeriod] = useState("30"); // '7' | '30'
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [datasetMaxDate, setDatasetMaxDate] = useState(null);
   const [debouncedSelection, setDebouncedSelection] = useState({
     komoditas: "",
     provinsi: "",
@@ -134,6 +135,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         setKomoditasList(komoditasData);
         setSelKomoditas(defaultKom);
         setSelProvinsi(defaultProv);
+        setDatasetMaxDate(initData.metadata?.dataset_max_date);
         setLastUpdated(new Date());
       } catch (err) {
         if (err.name !== "AbortError") setError(err.message);
@@ -409,7 +411,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             tanggalHariIni={new Date().toISOString().split('T')[0]}
           />
         ) : (
-          <IndonesiaMap data={mapData} komoditas={selKomoditas} horizon={mapHorizon} />
+          <IndonesiaMap data={mapData} komoditas={selKomoditas} horizon={mapHorizon} baseDate={datasetMaxDate} />
         )}
       </div>
 

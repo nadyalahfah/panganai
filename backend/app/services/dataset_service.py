@@ -101,18 +101,30 @@ def normalize_lookup_key(value: str) -> str:
 def build_historical_index(df_semua):
     if df_semua is None or df_semua.empty:
         return {}
+        
+    if "jenis_harga" in df_semua.columns:
+        df_semua = df_semua[df_semua["jenis_harga"] == "pasar_tradisional"]
+
     has_harga_nasional_col = "harga_nasional" in df_semua.columns
     index = {}
     for (provinsi, komoditas), subset in df_semua.groupby(["provinsi", "komoditas"]):
-        sorted_subset = subset.sort_values("tanggal")
         nasional_map = (
             df_semua[df_semua["komoditas"] == komoditas]
             .groupby("tanggal", as_index=True)["harga"]
             .mean()
             .to_dict()
         )
+        
+        agg_dict = {"harga": "mean"}
+        if has_harga_nasional_col:
+            agg_dict["harga_nasional"] = "mean"
+        if "status_pasokan" in subset.columns:
+            agg_dict["status_pasokan"] = "first"
+            
+        daily_subset = subset.groupby("tanggal", as_index=False).agg(agg_dict).sort_values("tanggal")
+
         rows = []
-        for _, row in sorted_subset.iterrows():
+        for _, row in daily_subset.iterrows():
             harga_nasional_val = row.get("harga_nasional") if has_harga_nasional_col else None
             harga_nasional = safe_float(harga_nasional_val)
             if harga_nasional is None:
@@ -138,8 +150,14 @@ def get_harga_historis_indexed(app_state, komoditas: str, provinsi: str):
 
 
 def get_harga_historis(df_semua, komoditas, provinsi):
+    if "jenis_harga" in df_semua.columns:
+        df_semua = df_semua[df_semua["jenis_harga"] == "pasar_tradisional"]
+
     mask = (df_semua["komoditas"] == komoditas) & (df_semua["provinsi"] == provinsi)
-    subset = df_semua[mask].sort_values("tanggal")
+    subset = df_semua[mask]
+    
+    if subset.empty:
+        return []
 
     # Fallback national price: mean harga per tanggal+komoditas
     has_harga_nasional_col = "harga_nasional" in df_semua.columns
@@ -150,8 +168,16 @@ def get_harga_historis(df_semua, komoditas, provinsi):
         .to_dict()
     )
 
+    agg_dict = {"harga": "mean"}
+    if has_harga_nasional_col:
+        agg_dict["harga_nasional"] = "mean"
+    if "status_pasokan" in subset.columns:
+        agg_dict["status_pasokan"] = "first"
+        
+    daily_subset = subset.groupby("tanggal", as_index=False).agg(agg_dict).sort_values("tanggal")
+
     result = []
-    for _, row in subset.iterrows():
+    for _, row in daily_subset.iterrows():
         harga_nasional_val = row.get("harga_nasional") if has_harga_nasional_col else None
         harga_nasional = safe_float(harga_nasional_val)
         if harga_nasional is None:

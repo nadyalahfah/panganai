@@ -196,6 +196,7 @@ def predict_all_provinces(
                 feature_columns=feature_columns,
                 provinsi=provinsi,
                 komoditas=komoditas,
+                jenis_harga="pasar_tradisional",
                 horizon=30,
             )
         except HTTPException as exc:
@@ -240,6 +241,7 @@ def get_prediction_legacy_contract(app_state, komoditas, provinsi):
         feature_columns=app_state.feature_columns,
         provinsi=provinsi,
         komoditas=komoditas,
+        jenis_harga="pasar_tradisional",
         horizon=30,
     )
 
@@ -276,8 +278,11 @@ def get_alerts_from_catboost(app_state, kenaikan_min_pct=5.0):
     if hasattr(app_state, "latest_feature_df") and app_state.latest_feature_df is not None:
         latest_rows = app_state.latest_feature_df.copy()
     else:
+        df_for_alerts = app_state.feature_df
+        if "jenis_harga" in df_for_alerts.columns:
+            df_for_alerts = df_for_alerts[df_for_alerts["jenis_harga"] == "pasar_tradisional"]
         latest_rows = (
-            app_state.feature_df.sort_values("tanggal")
+            df_for_alerts.sort_values("tanggal")
             .groupby(["provinsi", "komoditas"], as_index=False)
             .tail(1)
             .copy()
@@ -298,7 +303,7 @@ def get_alerts_from_catboost(app_state, kenaikan_min_pct=5.0):
                 app_state,
                 provinsi=provinsi,
                 komoditas=komoditas,
-                jenis_harga=jenis_harga if jenis_harga == jenis_harga else None,
+                jenis_harga="pasar_tradisional",
                 level_harga=level_harga if level_harga == level_harga else None,
             )
         except HTTPException as exc:
@@ -355,6 +360,9 @@ def get_alerts_from_catboost(app_state, kenaikan_min_pct=5.0):
 
 
 def get_national_statistics_from_catboost(df_semua, app_state):
+    if "jenis_harga" in df_semua.columns:
+        df_semua = df_semua[df_semua["jenis_harga"] == "pasar_tradisional"]
+
     latest_date = df_semua["tanggal"].max()
     today_data = df_semua[df_semua["tanggal"] == latest_date]
 

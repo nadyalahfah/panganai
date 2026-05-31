@@ -30,7 +30,7 @@ export default function GrafikPrediksi({ historis, prediksi, komoditas, tanggalH
     const result = []
     if (historis && historis.length > 0) {
       historis.slice(-historyDays).forEach((d) => {
-        result.push({ tanggal: d.tanggal, aktual: d.harga, prediksi: null })
+        result.push({ tanggal: d.tanggal, tanggalMs: new Date(d.tanggal).getTime(), aktual: d.harga, prediksi: null })
       })
     }
     if (prediksi && prediksi.length > 0 && result.length > 0) {
@@ -41,6 +41,7 @@ export default function GrafikPrediksi({ historis, prediksi, komoditas, tanggalH
       prediksi.forEach((d) => {
         result.push({
           tanggal: d.tanggal,
+          tanggalMs: new Date(d.tanggal).getTime(),
           aktual: null,
           prediksi: d.prediksi,
         })
@@ -88,7 +89,10 @@ export default function GrafikPrediksi({ historis, prediksi, komoditas, tanggalH
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
           <XAxis
-            dataKey="tanggal"
+            dataKey="tanggalMs"
+            type="number"
+            scale="time"
+            domain={['dataMin', 'dataMax']}
             tickFormatter={formatTanggalShort}
             tick={{ fontSize: 10, fill: '#9CA3AF' }}
             interval="preserveStartEnd"
@@ -103,7 +107,7 @@ export default function GrafikPrediksi({ historis, prediksi, komoditas, tanggalH
           <Tooltip content={<CustomTooltip />} />
           {tanggalHariIni && (
             <ReferenceLine
-              x={tanggalHariIni}
+              x={new Date(tanggalHariIni).getTime()}
               stroke="#6B7280"
               strokeDasharray="4 4"
               strokeWidth={1.5}
@@ -136,6 +140,7 @@ export default function GrafikPrediksi({ historis, prediksi, komoditas, tanggalH
             name="Prediksi"
             stroke="#10B981"
             strokeWidth={2.5}
+            strokeDasharray="5 5"
             fill="url(#gPrediksi)"
             dot={false}
             activeDot={{ r: 4, strokeWidth: 0, fill: '#10B981' }}
