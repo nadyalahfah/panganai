@@ -6,3 +6,4 @@ catboost
 azure-storage-blob
 python-dotenv
 pyarrow
+openai
