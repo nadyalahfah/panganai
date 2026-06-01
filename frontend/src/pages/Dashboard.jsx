@@ -32,7 +32,6 @@ import GrafikPrediksi from "../components/GrafikPrediksi";
 import IndonesiaMap from "../components/IndonesiaMap";
 import DistributionOptimizer from "../components/DistributionOptimizer";
 import EarlyWarningSystem from "../components/EarlyWarningSystem";
-import PolicyRecommendation from "../components/PolicyRecommendation";
 import AICommodityIntelligence from "../components/AICommodityIntelligence";
 import AlertCard from "../components/AlertCard";
 import {
@@ -408,7 +407,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             komoditas={komoditasList.find((k) => k.slug === selKomoditas)?.nama || selKomoditas}
             het={null}
             historyDays={45}
-            tanggalHariIni={new Date().toISOString().split('T')[0]}
+            tanggalHariIni={datasetMaxDate}
           />
         ) : (
           <IndonesiaMap data={mapData} komoditas={selKomoditas} horizon={mapHorizon} baseDate={datasetMaxDate} />
@@ -437,12 +436,6 @@ export default function Dashboard({ onAlertsLoaded }) {
         semuaProv={semuaProv} 
       />
 
-      {/* ── SECTION 6: Policy Recommendation Engine ── */}
-      {loading ? (
-        <div className="skeleton" style={{ height: 400, borderRadius: 8 }} />
-      ) : (
-        <PolicyRecommendation alerts={alerts} />
-      )}
     </div>
   );
 }

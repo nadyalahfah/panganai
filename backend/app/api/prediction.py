@@ -46,6 +46,7 @@ def get_prediksi(komoditas: str, provinsi: str, request: Request):
             feature_columns=request.app.state.feature_columns,
             provinsi=provinsi_resolved,
             komoditas=komoditas_resolved,
+            jenis_harga="pasar_tradisional",
             horizon=30,
         )
         return {
@@ -207,6 +208,7 @@ def get_prediksi_batch(
                 feature_columns=request.app.state.feature_columns,
                 provinsi=provinsi_resolved,
                 komoditas=komoditas_resolved,
+                jenis_harga="pasar_tradisional",
                 horizon=30,
             )
             payload = {

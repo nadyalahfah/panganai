@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Bot, DollarSign, TrendingUp, BarChart2, Search } from 'lucide-react'
 import GrafikPrediksi from '../components/GrafikPrediksi'
 import TabelProvinsi from '../components/TabelProvinsi'
+import AIInsightCard from '../components/AIInsightCard'
+import { getAIInsight } from '../services/aiInsightService'
 import {
   fetchKomoditas, fetchProvinsi, fetchPrediksi,
   fetchHargaHistoris, fetchPrediksiSemua,
-  formatRupiah, formatPct, getTrenClass,
+  formatRupiah, formatPct, getTrenClass, fetchDashboardInitial
 } from '../api'
 
 const AI_INSIGHTS = {
@@ -54,14 +56,22 @@ export default function Prediksi() {
   const [initialized, setInitialized] = useState(false)
   const [period, setPeriod] = useState('30')
 
+  const [aiInsight, setAiInsight] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(null)
+  const [datasetMaxDate, setDatasetMaxDate] = useState(null)
+
   useEffect(() => {
     async function loadFilters() {
       try {
-        const [komData, provData] = await Promise.all([fetchKomoditas(), fetchProvinsi()])
+        const [komData, provData, initData] = await Promise.all([fetchKomoditas(), fetchProvinsi(), fetchDashboardInitial()])
         const kom = komData.map(k => k.nama || k.slug || k).sort((a, b) => a.localeCompare(b));
         const prov = provData.map(p => p.nama || p.slug || p).sort((a, b) => a.localeCompare(b));
         setKomoditasList(kom)
         setProvinsiList(prov)
+        if (initData?.metadata?.dataset_max_date) {
+          setDatasetMaxDate(initData.metadata.dataset_max_date)
+        }
         
         const defaultKom = kom.length > 0 ? kom[0] : 'Beras Medium I';
         const defaultProv = prov.length > 0 ? prov[0] : 'DKI Jakarta';
@@ -90,6 +100,29 @@ export default function Prediksi() {
       setPrediksi(predData)
       setHistoris(histData)
       setSemuaProv(semuaData)
+      
+      // Fetch AI Insight after forecast is successfully loaded
+      const ring = predData?.ringkasan || {}
+      if (ring.harga_sekarang && ring.prediksi_7h) {
+        const pct = ((ring.prediksi_7h - ring.harga_sekarang) / ring.harga_sekarang) * 100
+        setAiLoading(true)
+        setAiError(null)
+        getAIInsight({
+          commodity: komoditas,
+          current_price: ring.harga_sekarang,
+          forecast_price: ring.prediksi_7h,
+          change_percent: pct,
+          recommendation_data: ""
+        })
+        .then(res => {
+          setAiInsight(res)
+          setAiLoading(false)
+        })
+        .catch(err => {
+          setAiError(err.message)
+          setAiLoading(false)
+        })
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -143,13 +176,21 @@ export default function Prediksi() {
       }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Komoditas</div>
-          <select className="filter-select" value={selKomoditas} onChange={e => setSelKomoditas(e.target.value)}>
+          <select className="filter-select" value={selKomoditas} onChange={e => {
+            const val = e.target.value;
+            setSelKomoditas(val);
+            loadData(val, selProvinsi);
+          }}>
             {komoditasList.map(k => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Provinsi</div>
-          <select className="filter-select" value={selProvinsi} onChange={e => setSelProvinsi(e.target.value)}>
+          <select className="filter-select" value={selProvinsi} onChange={e => {
+            const val = e.target.value;
+            setSelProvinsi(val);
+            loadData(selKomoditas, val);
+          }}>
             {provinsiList.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
@@ -179,7 +220,7 @@ export default function Prediksi() {
             historis={historis}
             prediksi={harian30}
             komoditas={selKomoditas}
-            tanggalHariIni="2026-04-13"
+            tanggalHariIni={datasetMaxDate}
           />
 
           {/* ── Split Card ── */}
@@ -277,24 +318,12 @@ export default function Prediksi() {
           </div>
 
           {/* ── AI Insight Box ── */}
-          <div className="ai-insight-box">
-            <div className="ai-insight-header">
-              <Bot size={18} color="#2563EB" />
-              <span className="ai-insight-title">🤖 AI Insight — {insight.title}</span>
-            </div>
-            <div className="ai-insight-body">
-              <p style={{ marginBottom: 8 }}>{insight.body}</p>
-              <ul>
-                {insight.bullets.map((b, i) => <li key={i}>{b}</li>)}
-              </ul>
-              <p style={{ marginTop: 10 }}>
-                <strong>Rekomendasi:</strong> {insight.rekomendasi}
-              </p>
-            </div>
-            <div className="ai-insight-footer">
-              📌 Confidence Score: {confidence7}% | Model: LSTM + Prophet | Last Updated: {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
-            </div>
-          </div>
+          <AIInsightCard 
+            insight={aiInsight} 
+            loading={aiLoading} 
+            error={aiError} 
+            komoditas={selKomoditas} 
+          />
 
           {/* ── Province Table ── */}
           <div className="section-header">

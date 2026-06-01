@@ -60,5 +60,9 @@ class Settings:
     FEATURE_COLUMNS_PATH = Path(LOCAL_FEATURE_COLUMNS_PATH)
     PREDICTION_ENGINE = "catboost"
 
+    AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://panganai-xaii.services.ai.azure.com/openai/v1")
+    AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "")
+    AZURE_OPENAI_MODEL = os.getenv("AZURE_OPENAI_MODEL", "gpt-4.1-mini")
+
 
 settings = Settings()
