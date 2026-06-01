@@ -1,43 +1,23 @@
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
+
+import pandas as pd
 
 from app.core.config import settings
 from app.repositories.alert_repository import load_alerts
-from app.repositories.dataset_repository import load_main_dataset, resolve_main_dataset_path
 from app.repositories.prediction_repository import load_daily_prediction, load_prediction_summary
-from app.services.feature_service import _resolve_feature_dataset_path, load_feature_dataset
-from app.services.feature_service import build_latest_features_index
-from app.services.model_service import ModelService
+from app.services.blob_storage_service import BlobStorageService
 from app.services.catboost_prediction_service import (
+    CatBoostPredictionService,
     get_alerts_from_catboost,
     get_all_province_predictions_legacy_contract,
     get_national_statistics_from_catboost,
 )
-from app.services.dataset_service import get_komoditas_objects, get_provinsi_objects
-from app.services.dataset_service import build_historical_index
-from app.services.blob_storage_service import BlobStorageService
-from app.services.dataset_service import load_dataset
-from app.services.model_service import load_catboost_model, load_feature_columns
-import pandas as pd
-from pathlib import Path
+from app.services.dataset_service import build_historical_index, get_komoditas_objects, get_provinsi_objects
+from app.services.price_datasets_service import PriceDatasetsService
 
 logger = logging.getLogger("panganai")
-
-
-def _validate_startup_files() -> None:
-    dataset_main_path = resolve_main_dataset_path()
-    required_files = [dataset_main_path]
-    if settings.PREDICTION_ENGINE == "catboost":
-        required_files.extend([settings.CATBOOST_MODEL_PATH, settings.FEATURE_COLUMNS_PATH])
-    if settings.PREDICTION_ENGINE == "csv":
-        required_files.extend([
-            settings.PREDICTIONS_CSV_DIR / "hasil_prediksi.csv",
-            settings.PREDICTIONS_CSV_DIR / "prediksi_harian.csv",
-            settings.PREDICTIONS_JSON_DIR / "alert_prediksi.json",
-        ])
-    missing = [str(path) for path in required_files if not path.exists()]
-    if missing:
-        raise FileNotFoundError(f"File startup wajib tidak ditemukan: {missing}")
 
 
 @asynccontextmanager
@@ -48,178 +28,154 @@ async def lifespan(app):
         app.state.prediction_all_cache = {}
         app.state.statistics_cache = None
         app.state.alert_cache = None
-        app.state.latest_inference_snapshot = None
-        app.state.historical_chart_sample = None
 
-        if not settings.USE_AZURE_BLOB:
-            _validate_startup_files()
-        # Download from Azure Blob if enabled, else use local
-        current_settings = settings
-        if current_settings.USE_AZURE_BLOB:
-            blob_storage = BlobStorageService(current_settings)
-            latest_inference_path = blob_storage.download_if_missing(
-                current_settings.DATASET_BLOB_PATH,
-                current_settings.LOCAL_DATASET_PATH,
-            )
-            historical_chart_path = blob_storage.download_if_missing(
-                current_settings.HISTORICAL_BLOB_PATH,
-                current_settings.LOCAL_HISTORICAL_PATH,
-            )
-            model_path = blob_storage.download_if_missing(
-                current_settings.MODEL_BLOB_PATH,
-                current_settings.LOCAL_MODEL_PATH,
-            )
-            feature_columns_path = blob_storage.download_if_missing(
-                current_settings.FEATURE_COLUMNS_BLOB_PATH,
-                current_settings.LOCAL_FEATURE_COLUMNS_PATH,
-            )
-        else:
-            logger.info("USE_AZURE_BLOB=false, using local artifact paths.")
-            latest_inference_path = current_settings.LOCAL_DATASET_PATH
-            historical_chart_path = current_settings.LOCAL_HISTORICAL_PATH
-            model_path = current_settings.LOCAL_MODEL_PATH
-            feature_columns_path = current_settings.LOCAL_FEATURE_COLUMNS_PATH
+        app.state.df_hasil = None
+        app.state.df_harian = None
+        app.state.alerts = []
 
-        # Load prediction summary and daily prediction (CSV fallback)
+        # Optional CSV fallback data
         try:
             app.state.df_hasil = load_prediction_summary()
             app.state.df_harian = load_daily_prediction()
         except FileNotFoundError:
-            app.state.df_hasil = None
-            app.state.df_harian = None
-
-        # Load main dataset
-        logger.info("Loading main dataset...")
-        app.state.df_semua = (
-            load_main_dataset()
-            if not current_settings.USE_AZURE_BLOB
-            else load_dataset(historical_chart_path)
-        )
-        if app.state.df_semua is not None:
-            mem_usage = app.state.df_semua.memory_usage(deep=True).sum() / (1024**2)
-            logger.info(f"df_semua loaded: {len(app.state.df_semua):,} rows | {len(app.state.df_semua.columns)} cols | Memory: {mem_usage:.2f} MB")
-            app.state.historical_by_key = build_historical_index(app.state.df_semua)
-            logger.info(f"historical_by_key built: {len(app.state.historical_by_key):,} keys")
-
-        # Load alerts
+            pass
         try:
             app.state.alerts = load_alerts()
         except FileNotFoundError:
-            app.state.alerts = []
+            pass
 
-        app.state.prediction_engine = settings.PREDICTION_ENGINE
-        app.state.model = None
-        app.state.feature_columns = []
-        app.state.feature_df = None
-        app.state.latest_feature_df = None
+        current_settings = settings
 
-        if settings.PREDICTION_ENGINE == "catboost":
+        model_path = current_settings.LOCAL_MODEL_PATH
+        inference_input_path = current_settings.LOCAL_INFERENCE_INPUT_PATH
+        historical_parquet_path = current_settings.LOCAL_HISTORICAL_PRICE_PARQUET_PATH
+
+        model_artifacts_ready = True
+
+        if current_settings.USE_AZURE_BLOB:
+            blob_storage = BlobStorageService(current_settings)
             try:
-                # Load model and feature columns
-                if current_settings.USE_AZURE_BLOB:
-                    app.state.model = load_catboost_model(model_path)
-                    app.state.feature_columns = load_feature_columns(feature_columns_path)
-                else:
-                    app.state.model = ModelService.load_model(settings.CATBOOST_MODEL_PATH)
-                    app.state.feature_columns = ModelService.load_feature_columns(settings.FEATURE_COLUMNS_PATH)
-
-                logger.info("Loading feature dataset...")
-                if current_settings.USE_AZURE_BLOB:
-                    app.state.feature_df = load_dataset(latest_inference_path)
-                else:
-                    app.state.feature_df = load_feature_dataset(app.state.feature_columns)
-                if app.state.feature_df is not None:
-                    mem_usage = app.state.feature_df.memory_usage(deep=True).sum() / (1024**2)
-                    logger.info(f"Feature dataset loaded: {app.state.feature_df.shape} | Memory: {mem_usage:.2f} MB")
-
-                # Pre-compute latest rows for O(1) filtering during inference
-                if app.state.feature_df is not None and not app.state.feature_df.empty:
-                    group_cols = ["provinsi", "komoditas"]
-                    if "jenis_harga" in app.state.feature_df.columns:
-                        group_cols.append("jenis_harga")
-                    if "level_harga" in app.state.feature_df.columns:
-                        group_cols.append("level_harga")
-                    idx = app.state.feature_df.groupby(group_cols, dropna=False)["tanggal"].idxmax()
-                    app.state.latest_feature_df = app.state.feature_df.loc[idx].copy()
-                    mem_usage = app.state.latest_feature_df.memory_usage(deep=True).sum() / (1024**2)
-                    logger.info(f"latest_feature_df loaded: {app.state.latest_feature_df.shape} | Memory: {mem_usage:.2f} MB")
-                else:
-                    app.state.latest_feature_df = None
-                app.state.latest_features_by_key = build_latest_features_index(app.state.latest_feature_df)
-                logger.info(f"latest_features_by_key built: {len(app.state.latest_features_by_key):,} keys")
-
-                app.state.prediction_engine = "catboost"
-
-                # Phase 2 Precomputations
-                df_feature_source = app.state.latest_feature_df if app.state.latest_feature_df is not None else app.state.feature_df
-
-                logger.info("Building cached komoditas...")
-                app.state.cached_komoditas = get_komoditas_objects(df_feature_source)
-                logger.info(f"cached_komoditas: {len(app.state.cached_komoditas)} records")
-
-                logger.info("Building cached provinsi...")
-                app.state.cached_provinsi = get_provinsi_objects(df_feature_source)
-                logger.info(f"cached_provinsi: {len(app.state.cached_provinsi)} records")
-
-                logger.info("Building cached statistics...")
-                app.state.cached_statistik_nasional = get_national_statistics_from_catboost(app.state.df_semua, app.state)
-                logger.info(f"cached_statistik_nasional: {len(app.state.cached_statistik_nasional)} records")
-
-                logger.info("Building cached alerts...")
-                app.state.cached_alerts = get_alerts_from_catboost(app.state)
-                logger.info(f"cached_alerts: {len(app.state.cached_alerts)} records")
-
-                logger.info("Building cached predictions...")
-                cached_prediksi_all = {}
-                for k_obj in app.state.cached_komoditas:
-                    kom_name = k_obj["nama"]
-                    preds = get_all_province_predictions_legacy_contract(app.state, kom_name)
-                    cached_prediksi_all[kom_name] = [{**row, "engine": "catboost"} for row in preds]
-                app.state.cached_prediksi_all = cached_prediksi_all
-                logger.info(f"cached_prediksi_all: {sum(len(v) for v in app.state.cached_prediksi_all.values())} records")
-                logger.info("Cache ready.")
+                model_path = blob_storage.download_blob_if_needed(
+                    current_settings.AZURE_MODEL_BLOB,
+                    current_settings.LOCAL_MODEL_PATH,
+                )
+                inference_input_path = blob_storage.download_blob_if_needed(
+                    current_settings.AZURE_INFERENCE_INPUT_BLOB,
+                    current_settings.LOCAL_INFERENCE_INPUT_PATH,
+                )
             except Exception as exc:
-                if hasattr(settings, "ENABLE_CSV_FALLBACK") and settings.ENABLE_CSV_FALLBACK:
-                    fallback_files = [
-                        settings.PREDICTIONS_CSV_DIR / "hasil_prediksi.csv",
-                        settings.PREDICTIONS_CSV_DIR / "prediksi_harian.csv",
-                        settings.PREDICTIONS_JSON_DIR / "alert_prediksi.json",
-                    ]
-                    missing_fallback = [str(path) for path in fallback_files if not path.exists()]
-                    if missing_fallback:
-                        raise RuntimeError(
-                            f"CatBoost gagal load dan file fallback CSV tidak lengkap: {missing_fallback}"
-                        ) from exc
-                    logger.exception("CatBoost load gagal, fallback ke CSV diaktifkan: %s", exc)
-                    app.state.prediction_engine = "csv"
-                else:
-                    raise RuntimeError(f"CatBoost gagal load dan fallback dimatikan: {exc}") from exc
+                model_artifacts_ready = False
+                logger.error("Model artifacts unavailable from blob storage: %s", exc)
+
+            try:
+                historical_parquet_path = blob_storage.download_blob_if_needed(
+                    current_settings.AZURE_HISTORICAL_PRICE_PARQUET_BLOB,
+                    current_settings.LOCAL_HISTORICAL_PRICE_PARQUET_PATH,
+                )
+            except Exception as exc:
+                logger.error("Historical artifact download failed (will fallback to CSV if possible): %s", exc)
+        else:
+            logger.info("USE_AZURE_BLOB=false, using local artifacts directly.")
+            model_artifacts_ready = Path(model_path).exists() and Path(inference_input_path).exists()
+
+        logger.info(
+            "Startup artifacts | model_blob=%s model_local=%s input_blob=%s history_blob=%s",
+            current_settings.AZURE_MODEL_BLOB,
+            model_path,
+            current_settings.AZURE_INFERENCE_INPUT_BLOB,
+            current_settings.AZURE_HISTORICAL_PRICE_PARQUET_BLOB,
+        )
+
+        # Load historical datasets service (non-fatal)
+        app.state.price_datasets_service = PriceDatasetsService(
+            historical_parquet_path=historical_parquet_path,
+            historical_csv_fallback_path=current_settings.LOCAL_HISTORICAL_CSV_FALLBACK_PATH,
+            summary_parquet_path=current_settings.LOCAL_HISTORICAL_SUMMARY_PARQUET_PATH,
+        )
+        app.state.price_datasets_service.load()
+        price_status = app.state.price_datasets_service.get_status()
+        logger.info(
+            "Historical loaded | rows=%s date_range=%s..%s summary_rows=%s",
+            price_status.get("history_rows"),
+            price_status.get("history_date_min"),
+            price_status.get("history_date_max"),
+            price_status.get("summary_rows"),
+        )
+
+        history_df = app.state.price_datasets_service.history_df
+        if history_df is not None and not history_df.empty:
+            app.state.df_semua = history_df.copy()
+            app.state.historical_by_key = build_historical_index(app.state.df_semua)
+            logger.info("historical_by_key built: %s keys", len(app.state.historical_by_key))
+        else:
+            app.state.df_semua = pd.DataFrame()
+            app.state.historical_by_key = {}
+
+        # Load CatBoost prediction service (fatal for catboost engine availability)
+        app.state.catboost_prediction_service = CatBoostPredictionService(
+            model_path=model_path,
+            input_parquet_path=inference_input_path,
+            manifest_path=current_settings.MODEL_MANIFEST_PATH,
+        )
+        if model_artifacts_ready:
+            app.state.catboost_prediction_service.load()
+            app.state.catboost_prediction_service.predict_all()
+        else:
+            app.state.catboost_prediction_service.status.update(
+                {
+                    "available": False,
+                    "loaded": False,
+                    "predicted": False,
+                    "error": "Model/input artifacts unavailable. Startup continues with CSV fallback.",
+                }
+            )
+        pred_status = app.state.catboost_prediction_service.get_status()
+
+        # Backward compatibility fields used by existing endpoints/services.
+        app.state.model = app.state.catboost_prediction_service.model
+        if app.state.model is not None:
+            setattr(app.state.model, "_service_ref", app.state.catboost_prediction_service)
+        app.state.feature_columns = app.state.catboost_prediction_service.feature_columns
+        app.state.feature_df = app.state.catboost_prediction_service.input_df
+        app.state.latest_feature_df = app.state.catboost_prediction_service.input_df
+
+        logger.info(
+            "CatBoost loaded | model_local=%s model_file_size=%s input_rows=%s input_cols=%s pred_rows=%s target_range=%s..%s",
+            model_path,
+            Path(model_path).stat().st_size if Path(model_path).exists() else None,
+            pred_status.get("rows"),
+            pred_status.get("columns"),
+            pred_status.get("prediction_rows"),
+            pred_status.get("target_date_min"),
+            pred_status.get("target_date_max"),
+        )
+
+        if pred_status.get("available") and pred_status.get("predicted"):
+            app.state.prediction_engine = "catboost"
         else:
             app.state.prediction_engine = "csv"
+            logger.error("CatBoost unavailable, switching engine to csv: %s", pred_status.get("error"))
 
-        # Optional parquet snapshots for faster dashboards
-        try:
-            latest_snapshot_path = current_settings.LATEST_INFERENCE_SNAPSHOT_PATH
-            if latest_snapshot_path and Path(latest_snapshot_path).exists():
-                app.state.latest_inference_snapshot = pd.read_parquet(latest_snapshot_path)
-                logger.info(
-                    "latest_inference_snapshot loaded: %s rows",
-                    len(app.state.latest_inference_snapshot),
-                )
-        except Exception as exc:
-            logger.warning("Failed loading latest_inference_snapshot.parquet: %s", exc)
-        try:
-            chart_sample_path = current_settings.HISTORICAL_CHART_SAMPLE_PATH
-            if chart_sample_path and Path(chart_sample_path).exists():
-                app.state.historical_chart_sample = pd.read_parquet(chart_sample_path)
-                logger.info(
-                    "historical_chart_sample loaded: %s rows",
-                    len(app.state.historical_chart_sample),
-                )
-        except Exception as exc:
-            logger.warning("Failed loading historical_chart_sample.parquet: %s", exc)
+        # Build cached catalogs/statistics/alerts from loaded runtime sources.
+        df_feature_source = app.state.feature_df if app.state.feature_df is not None else app.state.df_semua
+        app.state.cached_komoditas = get_komoditas_objects(df_feature_source)
+        app.state.cached_provinsi = get_provinsi_objects(df_feature_source)
+        app.state.cached_statistik_nasional = get_national_statistics_from_catboost(app.state.df_semua, app.state)
+        app.state.cached_alerts = get_alerts_from_catboost(app.state)
+
+        cached_prediksi_all = {}
+        for k_obj in app.state.cached_komoditas:
+            kom_name = k_obj["nama"]
+            preds = get_all_province_predictions_legacy_contract(app.state, kom_name)
+            cached_prediksi_all[kom_name] = [{**row, "engine": "catboost"} for row in preds]
+        app.state.cached_prediksi_all = cached_prediksi_all
+
+        app.state.model_loaded = bool(pred_status.get("available") and pred_status.get("predicted"))
+        app.state.dataset_loaded = bool(history_df is not None and not history_df.empty)
+        app.state.storage_ready = True
+
     except Exception as exc:
-        logger.error(f"Startup failed: {exc}")
+        logger.error("Startup failed: %s", exc)
         raise
 
     yield

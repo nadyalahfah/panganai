@@ -1,95 +1,27 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Map,
-  BarChart2,
   TrendingUp,
-  Bell,
-  Activity,
-  BarChart,
   DollarSign,
   AlertTriangle,
   Package,
-  Truck,
   RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
+  X,
+  Info,
 } from "lucide-react";
-import {
-  BarChart as ReBarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Legend,
-  ReferenceLine,
-} from "recharts";
 import MetricCard from "../components/MetricCard";
 import GrafikPrediksi from "../components/GrafikPrediksi";
 import IndonesiaMap from "../components/IndonesiaMap";
 import DistributionOptimizer from "../components/DistributionOptimizer";
 import EarlyWarningSystem from "../components/EarlyWarningSystem";
 import AICommodityIntelligence from "../components/AICommodityIntelligence";
-import AlertCard from "../components/AlertCard";
 import {
   fetchDashboardDetail,
   fetchDashboardInitial,
-  formatRupiah,
-  formatPct,
-  formatTanggalShort,
   formatRupiahShort,
 } from "../api";
 
-
-const DISTRIB_MOCK = [
-  {
-    from: "Lampung",
-    to: "DKI Jakarta",
-    komoditas: "Cabai Merah",
-    margin: 8500,
-    roi: 18,
-    status: "open",
-  },
-  {
-    from: "Solok",
-    to: "Sumatera Utara",
-    komoditas: "Beras Medium I",
-    margin: 5200,
-    roi: 12,
-    status: "open",
-  },
-  {
-    from: "Jawa Barat",
-    to: "Jawa Timur",
-    komoditas: "Minyak Goreng Curah",
-    margin: 3000,
-    roi: 8,
-    status: "moderate",
-  },
-];
-
-function BarTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="custom-tooltip">
-      <div className="tooltip-date" style={{ marginBottom: 6 }}>
-        {label}
-      </div>
-      {payload.map((p, i) => (
-        <div key={i} className="tooltip-item">
-          <span className="tooltip-dot" style={{ background: p.fill }} />
-          <span>
-            {p.name}: {formatRupiah(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
+const FIXED_REFERENCE_DATE = "2026-05-19";
 export default function Dashboard({ onAlertsLoaded }) {
   const [komoditasList, setKomoditasList] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -97,11 +29,10 @@ export default function Dashboard({ onAlertsLoaded }) {
   const [provinsiList, setProvinsiList] = useState([]);
   const [selKomoditas, setSelKomoditas] = useState("");
   const [selProvinsi, setSelProvinsi] = useState("");
-  const [geoMode, setGeoMode] = useState("forecast"); // 'forecast' | 'map'
-  const [mapHorizon, setMapHorizon] = useState(7); // 1, 7, 30
-  const [predPeriod, setPredPeriod] = useState("30"); // '7' | '30'
+  const [geoMode, setGeoMode] = useState("map");
+  const [predPeriod, setPredPeriod] = useState("30");
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [datasetMaxDate, setDatasetMaxDate] = useState(null);
+  const [datasetMaxDate, setDatasetMaxDate] = useState(FIXED_REFERENCE_DATE);
   const [debouncedSelection, setDebouncedSelection] = useState({
     komoditas: "",
     provinsi: "",
@@ -110,6 +41,7 @@ export default function Dashboard({ onAlertsLoaded }) {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState(null);
+  const [showGuideBanner, setShowGuideBanner] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -124,8 +56,15 @@ export default function Dashboard({ onAlertsLoaded }) {
         const komoditasData = initData.komoditas || [];
         const defaultProv =
           initData.default_selection?.provinsi || provData?.[0]?.slug || "";
-        const defaultKom =
-          initData.default_selection?.komoditas || komoditasData?.[0]?.slug || "";
+        const preferredKomSlug = "cabai-merah-keriting";
+        const hasPreferredKom = komoditasData.some(
+          (k) => k?.slug === preferredKomSlug,
+        );
+        const defaultKom = hasPreferredKom
+          ? preferredKomSlug
+          : initData.default_selection?.komoditas ||
+            komoditasData?.[0]?.slug ||
+            "";
 
         setAlerts(alertData);
         onAlertsLoaded?.(alertData.filter((a) => a.kenaikan_pct > 10));
@@ -134,7 +73,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         setKomoditasList(komoditasData);
         setSelKomoditas(defaultKom);
         setSelProvinsi(defaultProv);
-        setDatasetMaxDate(initData.metadata?.dataset_max_date);
+        setDatasetMaxDate(FIXED_REFERENCE_DATE);
         setLastUpdated(new Date());
       } catch (err) {
         if (err.name !== "AbortError") setError(err.message);
@@ -148,10 +87,7 @@ export default function Dashboard({ onAlertsLoaded }) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSelection({
-        komoditas: selKomoditas,
-        provinsi: selProvinsi,
-      });
+      setDebouncedSelection({ komoditas: selKomoditas, provinsi: selProvinsi });
     }, 350);
     return () => clearTimeout(timer);
   }, [selKomoditas, selProvinsi]);
@@ -181,9 +117,15 @@ export default function Dashboard({ onAlertsLoaded }) {
 
   const predChart = useMemo(
     () => ({
-      ringkasan: detailData?.prediksi?.ringkasan || {},
-      harian: detailData?.prediksi?.harian || [],
-      historis: detailData?.historis || [],
+      ringkasan:
+        detailData?.prediksi_nasional?.ringkasan ||
+        detailData?.prediksi?.ringkasan ||
+        {},
+      harian:
+        detailData?.prediksi_nasional?.harian ||
+        detailData?.prediksi?.harian ||
+        [],
+      historis: detailData?.historis_nasional || detailData?.historis || [],
     }),
     [detailData],
   );
@@ -191,69 +133,46 @@ export default function Dashboard({ onAlertsLoaded }) {
   const semuaProv = detailData?.prediksi_semua || [];
   const loading = loadingInitial || loadingDetail;
 
-  // KPIs from real stats
+  const selectedKomoditasName = useMemo(
+    () =>
+      komoditasList.find((k) => k.slug === selKomoditas)?.nama || selKomoditas,
+    [komoditasList, selKomoditas],
+  );
+
   const avgNasional = useMemo(() => {
-    const selectedKomoditasName = komoditasList.find((k) => k.slug === selKomoditas)?.nama;
     const s = stats.find((x) => x.komoditas === selectedKomoditasName);
     return s?.harga_rata_nasional || null;
-  }, [stats, selKomoditas, komoditasList]);
+  }, [stats, selectedKomoditasName]);
 
-  const alertNaikCount = alerts.filter((a) => a.kenaikan_pct > 10).length;
-  const alertWarnCount = alerts.filter(
+  const alertsByKomoditas = useMemo(() => {
+    if (!selKomoditas || !alerts?.length) return [];
+    return alerts.filter((a) => a.komoditas === selectedKomoditasName);
+  }, [alerts, selKomoditas, selectedKomoditasName]);
+
+  const alertNaikCount = alertsByKomoditas.filter(
+    (a) => a.kenaikan_pct > 10,
+  ).length;
+  const alertWarnCount = alertsByKomoditas.filter(
     (a) => a.kenaikan_pct >= 5 && a.kenaikan_pct <= 10,
   ).length;
 
-  // Bar chart data for provinces (top 15 by price)
-  const barData = useMemo(() => {
-    return [...semuaProv]
-      .sort((a, b) => (b.harga_sekarang || 0) - (a.harga_sekarang || 0))
-      .slice(0, 15)
-      .map((r) => ({
-        name: r.provinsi.replace(/^(DI|DKI) /, "").substring(0, 15),
-        harga: r.harga_sekarang,
-        prediksi: r.prediksi_7h,
-      }));
-  }, [semuaProv]);
-
-  // Full data for map without truncation
   const mapData = useMemo(() => {
+    const isThirtyDays = predPeriod === "30";
     return (semuaProv || []).map((r) => ({
       name: r.provinsi,
       harga: r.harga_sekarang,
-      prediksi: mapHorizon === 1 ? r.prediksi_1h : mapHorizon === 7 ? r.prediksi_7h : r.prediksi_30h,
+      prediksi: isThirtyDays ? r.prediksi_30h : r.prediksi_7h,
     }));
-  }, [semuaProv, mapHorizon]);
-
-  // Prediction trend chart
-  const trendChartData = useMemo(() => {
-    const result = [];
-    const days = predPeriod === "7" ? 7 : 30;
-    if (predChart.historis.length > 0) {
-      predChart.historis.slice(-30).forEach((d) => {
-        result.push({ tanggal: d.tanggal, aktual: d.harga, prediksi: null });
-      });
-    }
-    if (predChart.harian.length > 0) {
-      const slice = predChart.harian.slice(0, days);
-      if (result.length > 0) {
-        const last = result[result.length - 1];
-        result.push({
-          tanggal: slice[0]?.tanggal,
-          aktual: null,
-          prediksi: last.aktual || slice[0]?.prediksi,
-        });
-      }
-      slice.slice(1).forEach((d) => {
-        result.push({ tanggal: d.tanggal, aktual: null, prediksi: d.prediksi });
-      });
-    }
-    return result;
-  }, [predChart, predPeriod]);
+  }, [semuaProv, predPeriod]);
 
   const formatTs = (d) =>
     d
       ? d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-      : "—";
+      : "-";
+
+  const dismissGuideBanner = () => {
+    setShowGuideBanner(false);
+  };
 
   if (error) {
     return (
@@ -263,7 +182,7 @@ export default function Dashboard({ onAlertsLoaded }) {
           <p>Monitoring harga pangan nasional</p>
         </div>
         <div className="error-state">
-          <div className="error-icon">⚠️</div>
+          <div className="error-icon">!</div>
           <h3>Tidak dapat terhubung ke server</h3>
           <p>{error}</p>
           <p style={{ marginTop: 8, fontSize: 12 }}>
@@ -276,7 +195,65 @@ export default function Dashboard({ onAlertsLoaded }) {
 
   return (
     <div>
-      {/* ── Page Header ── */}
+      {showGuideBanner && (
+        <div
+          style={{
+            marginBottom: 14,
+            border: "1px solid #BFDBFE",
+            background: "linear-gradient(90deg, #EFF6FF 0%, #F8FAFC 100%)",
+            borderRadius: 12,
+            padding: "12px 14px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", gap: 10 }}>
+            <Info
+              size={16}
+              color="#1D4ED8"
+              style={{ marginTop: 2, flexShrink: 0 }}
+            />
+            <div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#0F172A",
+                  marginBottom: 3,
+                }}
+              >
+                Panduan Singkat Dashboard
+              </div>
+              <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
+                Pilih <strong>komoditas</strong> dan{" "}
+                <strong>horizon 7/30 hari</strong> di kanan atas.
+                <strong> Peta Risiko</strong> menampilkan level risiko per
+                provinsi, sedangkan
+                <strong> Prediksi Harga</strong> menampilkan tren harga aktual
+                dan proyeksi.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={dismissGuideBanner}
+            aria-label="Tutup panduan"
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "#475569",
+              cursor: "pointer",
+              padding: 2,
+              lineHeight: 1,
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <div
         style={{
           display: "flex",
@@ -287,12 +264,27 @@ export default function Dashboard({ onAlertsLoaded }) {
         }}
       >
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <div style={{display: "flex", alignItems: "center", gap: 12}}><h2>PanganAI Executive Command Center</h2>{komoditasList.length > 0 && <span style={{background: "#E2E8F0", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#475569"}}>{komoditasList.length} Komoditas Aktif</span>}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h2>PanganAI Executive Command Center</h2>
+            {komoditasList.length > 0 && (
+              <span
+                style={{
+                  background: "#E2E8F0",
+                  padding: "4px 10px",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#475569",
+                }}
+              >
+                {komoditasList.length} Komoditas Aktif
+              </span>
+            )}
+          </div>
           <p>AI-Powered National Food Monitoring & Forecasting</p>
         </div>
       </div>
 
-      {/* ── SECTION 1: Executive KPI Summary ── */}
       <div className="flex items-center gap-2" style={{ marginBottom: 24 }}>
         <div className="metrics-grid flex-1 gap-2">
           {loading ? (
@@ -327,73 +319,79 @@ export default function Dashboard({ onAlertsLoaded }) {
               />
               <MetricCard
                 label="Harga Rata-rata"
-                value={avgNasional ? formatRupiahShort(avgNasional) : "—"}
+                value={avgNasional ? formatRupiahShort(avgNasional) : "-"}
                 icon={DollarSign}
                 color="#F97316"
-                footer={komoditasList.find((k) => k.slug === selKomoditas)?.nama || "-"}
+                footer={selectedKomoditasName || "-"}
               />
             </>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <select
-            className="filter-select"
-            value={selKomoditas}
-            onChange={(e) => setSelKomoditas(e.target.value)}
-            style={{ minWidth: 200 }}
-          >
-            {komoditasList.map((k) => (
-              <option key={k.slug || k.nama} value={k.slug || k.nama}>
-                {k.nama || k.slug}
-              </option>
-            ))}
-          </select>
-          {lastUpdated && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                fontSize: 11,
-                color: "var(--text-muted)",
-              }}
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <select
+              className="filter-select"
+              value={selKomoditas}
+              onChange={(e) => setSelKomoditas(e.target.value)}
+              style={{ minWidth: 280 }}
             >
-              <RefreshCw size={11} /> {formatTs(lastUpdated)}
-            </div>
-          )}
+              {komoditasList.map((k) => (
+                <option key={k.slug || k.nama} value={k.slug || k.nama}>
+                  {k.nama || k.slug}
+                </option>
+              ))}
+            </select>
+            {lastUpdated && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 11,
+                  color: "var(--text-muted)",
+                }}
+              ></div>
+            )}
+          </div>
+          <div className="toggle-group">
+            <button
+              className={`toggle-btn-item${predPeriod === "7" ? " active" : ""}`}
+              onClick={() => setPredPeriod("7")}
+            >
+              7 Hari
+            </button>
+            <button
+              className={`toggle-btn-item${predPeriod === "30" ? " active" : ""}`}
+              onClick={() => setPredPeriod("30")}
+            >
+              30 Hari
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── SECTION 2: Commodity Price Forecast ── */}
       <div className="chart-card" style={{ marginBottom: 24 }}>
         <div className="chart-card-header">
-          <div className="chart-card-title">
-            <TrendingUp size={16} /> Prediksi Harga Komoditas — {selKomoditas}
-          </div>
           <div className="toggle-group">
-            {geoMode === "map" && (
-              <select 
-                className="filter-select" 
-                value={mapHorizon} 
-                onChange={(e) => setMapHorizon(Number(e.target.value))}
-                style={{ marginRight: 8, padding: "4px 8px", fontSize: 12 }}
-              >
-                <option value={1}>1 Day</option>
-                <option value={7}>7 Days</option>
-                <option value={30}>30 Days</option>
-              </select>
-            )}
-            <button
-              className={`toggle-btn-item${geoMode === "forecast" ? " active" : ""}`}
-              onClick={() => setGeoMode("forecast")}
-            >
-              Prediksi Harga
-            </button>
             <button
               className={`toggle-btn-item${geoMode === "map" ? " active" : ""}`}
               onClick={() => setGeoMode("map")}
             >
               Peta Risiko
+            </button>
+            <button
+              className={`toggle-btn-item${geoMode === "forecast" ? " active" : ""}`}
+              onClick={() => setGeoMode("forecast")}
+            >
+              Harga Nasional
             </button>
           </div>
         </div>
@@ -403,39 +401,53 @@ export default function Dashboard({ onAlertsLoaded }) {
         ) : geoMode === "forecast" ? (
           <GrafikPrediksi
             historis={predChart.historis}
-            prediksi={predChart.harian.slice(0, 30)}
-            komoditas={komoditasList.find((k) => k.slug === selKomoditas)?.nama || selKomoditas}
+            prediksi={predChart.harian.slice(0, predPeriod === "30" ? 30 : 7)}
+            komoditas={selectedKomoditasName}
             het={null}
             historyDays={45}
             tanggalHariIni={datasetMaxDate}
           />
         ) : (
-          <IndonesiaMap data={mapData} komoditas={selKomoditas} horizon={mapHorizon} baseDate={datasetMaxDate} />
+          <IndonesiaMap
+            data={mapData}
+            komoditas={selectedKomoditasName}
+            horizon={Number(predPeriod)}
+            baseDate={datasetMaxDate}
+          />
         )}
       </div>
 
-      {/* ── SECTION 3: AI Commodity Intelligence ── */}
       {loading ? (
-        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
+        <div
+          className="skeleton"
+          style={{ height: 400, borderRadius: 8, marginBottom: 24 }}
+        />
       ) : (
-        <AICommodityIntelligence alerts={alerts} />
+        <AICommodityIntelligence
+          alerts={alertsByKomoditas}
+          selectedKomoditas={selectedKomoditasName}
+          horizonDays={Number(predPeriod)}
+          semuaProv={semuaProv}
+        />
       )}
 
-      {/* ── SECTION 4: Early Warning System ── */}
       {loading ? (
-        <div className="skeleton" style={{ height: 400, borderRadius: 8, marginBottom: 24 }} />
+        <div
+          className="skeleton"
+          style={{ height: 400, borderRadius: 8, marginBottom: 24 }}
+        />
       ) : (
-        <EarlyWarningSystem alerts={alerts} />
+        <EarlyWarningSystem
+          alerts={alertsByKomoditas}
+          horizonDays={Number(predPeriod)}
+        />
       )}
 
-      {/* ── SECTION 5: Supply & Distribution Optimizer ── */}
-      <DistributionOptimizer 
-        komoditasList={komoditasList} 
-        selKomoditas={selKomoditas} 
-        onKomoditasChange={setSelKomoditas} 
-        semuaProv={semuaProv} 
+      <DistributionOptimizer
+        selectedKomoditas={selectedKomoditasName}
+        horizonDays={Number(predPeriod)}
+        semuaProv={semuaProv}
       />
-
     </div>
   );
 }

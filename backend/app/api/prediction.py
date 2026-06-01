@@ -66,6 +66,17 @@ def get_prediksi(komoditas: str, provinsi: str, request: Request):
                 "prototype_recursive_forecast": True,
             },
             "harian": result["harian"],
+            "prediksi_model": {
+                "ringkasan": {
+                    "harga_sekarang": result["harga_sekarang"],
+                    "prediksi_7h": result["prediksi_7h"],
+                    "prediksi_30h": result["prediksi_30h"],
+                    "tren_7h": result["tren_7h"],
+                    "tren_30h": result["tren_30h"],
+                },
+                "harian": result["harian"],
+                "source": "catboost_h01_h30_full_factor",
+            },
         }
 
     ringkasan = get_prediction_summary(
@@ -74,7 +85,15 @@ def get_prediksi(komoditas: str, provinsi: str, request: Request):
     harian = get_daily_forecast(
         request.app.state.df_harian, komoditas_resolved, provinsi_resolved
     )
-    return {"ringkasan": ringkasan, "harian": harian}
+    return {
+        "ringkasan": ringkasan,
+        "harian": harian,
+        "prediksi_model": {
+            "ringkasan": ringkasan,
+            "harian": harian,
+            "source": "csv_fallback",
+        },
+    }
 
 
 @router.get("/prediksi-semua")

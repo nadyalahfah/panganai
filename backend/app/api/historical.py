@@ -18,7 +18,8 @@ def get_harga_historis_endpoint(komoditas: str, provinsi: str, request: Request)
     provinsi_resolved = resolve_provinsi_value(source_df, provinsi)
     if not komoditas_resolved or not provinsi_resolved:
         raise HTTPException(status_code=404, detail="Slug komoditas/provinsi tidak ditemukan")
-    return get_harga_historis_indexed(request.app.state, komoditas_resolved, provinsi_resolved)
+    historis = get_harga_historis_indexed(request.app.state, komoditas_resolved, provinsi_resolved)
+    return historis
 
 
 @router.post("/harga-historis/batch")

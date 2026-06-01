@@ -1,4 +1,5 @@
 from datetime import datetime
+import pandas as pd
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
@@ -31,6 +32,104 @@ router = APIRouter()
 
 def _engine(request: Request) -> str:
     return getattr(request.app.state, "prediction_engine", settings.PREDICTION_ENGINE)
+
+
+def _build_historis_nasional(df_semua, komoditas: str) -> list[dict]:
+    if df_semua is None or df_semua.empty:
+        return []
+    work = df_semua.copy()
+    if "jenis_harga" in work.columns:
+        work = work[work["jenis_harga"] == "pasar_tradisional"]
+    subset = work[work["komoditas"] == komoditas]
+    if subset.empty:
+        return []
+    grouped = (
+        subset.groupby("tanggal", as_index=False)["harga"]
+        .mean()
+        .sort_values("tanggal")
+    )
+    rows: list[dict] = []
+    for _, row in grouped.iterrows():
+        t = pd.to_datetime(row.get("tanggal"), errors="coerce")
+        if pd.isna(t):
+            continue
+        rows.append({"tanggal": format_date(t), "harga": float(row.get("harga"))})
+    return rows
+
+
+def _build_prediksi_nasional_from_prediksi_semua(prediksi_semua: list[dict]) -> dict:
+    if not prediksi_semua:
+        return {"ringkasan": {}, "harian": []}
+    def _mean(field: str):
+        vals = [float(r.get(field)) for r in prediksi_semua if r.get(field) is not None]
+        return (sum(vals) / len(vals)) if vals else None
+    harga = _mean("harga_sekarang")
+    p7 = _mean("prediksi_7h")
+    p30 = _mean("prediksi_30h")
+    tren7 = "NAIK" if (p7 is not None and harga is not None and p7 > harga) else ("TURUN" if (p7 is not None and harga is not None and p7 < harga) else "STABIL")
+    tren30 = "NAIK" if (p30 is not None and harga is not None and p30 > harga) else ("TURUN" if (p30 is not None and harga is not None and p30 < harga) else "STABIL")
+    return {
+        "ringkasan": {
+            "harga_sekarang": harga,
+            "prediksi_7h": p7,
+            "prediksi_30h": p30,
+            "tren_7h": tren7,
+            "tren_30h": tren30,
+        },
+        "harian": [],
+    }
+
+
+def _build_prediksi_nasional_harian_catboost(app_state, komoditas: str) -> list[dict]:
+    service = getattr(app_state, "catboost_prediction_service", None)
+    if service is None:
+        return []
+    df = service.filter_predictions(komoditas=komoditas, jenis_harga="pasar_tradisional")
+    if df.empty or "target_date" not in df.columns or "pred_catboost" not in df.columns:
+        return []
+    grouped = (
+        df.groupby("target_date", as_index=False)["pred_catboost"]
+        .mean()
+        .sort_values("target_date")
+    )
+    rows: list[dict] = []
+    for _, row in grouped.iterrows():
+        t = pd.to_datetime(row.get("target_date"), errors="coerce")
+        if pd.isna(t):
+            continue
+        pred = float(row.get("pred_catboost"))
+        margin = abs(pred) * 0.03
+        rows.append({
+            "tanggal": format_date(t),
+            "prediksi": pred,
+            "batas_bawah": pred - margin,
+            "batas_atas": pred + margin,
+        })
+    return rows
+
+
+def _build_prediksi_nasional_harian_csv(app_state, komoditas: str) -> list[dict]:
+    df_harian = getattr(app_state, "df_harian", None)
+    if df_harian is None or df_harian.empty:
+        return []
+    subset = df_harian[df_harian["komoditas"] == komoditas]
+    if subset.empty:
+        return []
+    grouped = subset.groupby("tanggal", as_index=False).agg(
+        {"prediksi": "mean", "batas_bawah": "mean", "batas_atas": "mean"}
+    ).sort_values("tanggal")
+    rows: list[dict] = []
+    for _, row in grouped.iterrows():
+        t = pd.to_datetime(row.get("tanggal"), errors="coerce")
+        if pd.isna(t):
+            continue
+        rows.append({
+            "tanggal": format_date(t),
+            "prediksi": float(row.get("prediksi")),
+            "batas_bawah": float(row.get("batas_bawah")),
+            "batas_atas": float(row.get("batas_atas")),
+        })
+    return rows
 
 
 @router.get("/dashboard/initial")
@@ -142,6 +241,7 @@ def get_dashboard_detail(komoditas: str, provinsi: str, request: Request, respon
                 komoditas_resolved,
             )
             prediksi_semua = [{**row, "engine": "catboost"} for row in rows]
+        prediksi_nasional_harian = _build_prediksi_nasional_harian_catboost(request.app.state, komoditas_resolved)
     else:
         prediksi = {
             "ringkasan": get_prediction_summary(
@@ -159,6 +259,11 @@ def get_dashboard_detail(komoditas: str, provinsi: str, request: Request, respon
             request.app.state.df_hasil,
             komoditas_resolved,
         )
+        prediksi_nasional_harian = _build_prediksi_nasional_harian_csv(request.app.state, komoditas_resolved)
+
+    prediksi_nasional = _build_prediksi_nasional_from_prediksi_semua(prediksi_semua)
+    prediksi_nasional["harian"] = prediksi_nasional_harian
+    historis_nasional = _build_historis_nasional(request.app.state.df_semua, komoditas_resolved)
 
     payload = {
         "selection": {
@@ -167,10 +272,20 @@ def get_dashboard_detail(komoditas: str, provinsi: str, request: Request, respon
         },
         "prediksi": prediksi,
         "historis": historis,
+        "prediksi_model": prediksi,
+        "harga_aktual": historis,
         "prediksi_semua": prediksi_semua,
+        "prediksi_nasional": prediksi_nasional,
+        "historis_nasional": historis_nasional,
         "recommendation": None,
         "metadata": {
             "engine": _engine(request),
+            "prediksi_source": (
+                "catboost_h01_h30_full_factor"
+                if _engine(request) == "catboost"
+                else "csv_fallback"
+            ),
+            "harga_aktual_source": "harga_historis_2026-01-01_2026-05-20.parquet",
             "cache": "miss",
         },
     }

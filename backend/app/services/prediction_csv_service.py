@@ -2,6 +2,8 @@ from app.utils.converters import format_date, safe_float
 
 
 def get_prediction_summary(df_hasil, komoditas, provinsi):
+    if df_hasil is None or df_hasil.empty:
+        return {}
     mask = (df_hasil["komoditas"] == komoditas) & (df_hasil["provinsi"] == provinsi)
     row = df_hasil[mask]
 
@@ -25,6 +27,8 @@ def get_prediction_summary(df_hasil, komoditas, provinsi):
 
 
 def get_daily_forecast(df_harian, komoditas, provinsi):
+    if df_harian is None or df_harian.empty:
+        return []
     mask = (df_harian["komoditas"] == komoditas) & (df_harian["provinsi"] == provinsi)
     subset = df_harian[mask].sort_values("tanggal")
 
@@ -42,6 +46,8 @@ def get_daily_forecast(df_harian, komoditas, provinsi):
 
 
 def get_all_province_predictions(df_hasil, komoditas):
+    if df_hasil is None or df_hasil.empty:
+        return []
     subset = df_hasil[df_hasil["komoditas"] == komoditas].copy()
 
     result = []

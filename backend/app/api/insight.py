@@ -16,6 +16,9 @@ class InsightResponse(BaseModel):
     summary: str
     risk: str
     recommendation: str
+    cache_hit: bool = False
+    generated_at: Optional[str] = None
+    cache_key: Optional[str] = None
 
 @router.post("/insight", response_model=InsightResponse)
 def get_ai_insight(request: InsightRequest):
