@@ -28,7 +28,7 @@ export default function MetricCard({
 
   return (
     <div className="metric-card flex items-stretch gap-4">
-      <div className="w-[3px] h-full bg-gray-200 rounded-full"></div>
+      <div className="w-0.75 h-full bg-gray-200 rounded-full"></div>
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <div className="metric-label">{label}</div>

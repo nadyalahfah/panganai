@@ -529,7 +529,7 @@ body {
 }
 
 .metric-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   letter-spacing: 0.4px;
@@ -554,7 +554,7 @@ body {
 }
 
 .metric-footer {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   margin-top: 8px;
 }

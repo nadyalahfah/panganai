@@ -140,9 +140,17 @@ export default function Dashboard({ onAlertsLoaded }) {
   );
 
   const avgNasional = useMemo(() => {
+    const historicalNational = detailData?.historis_nasional || [];
+    const byReferenceDate = historicalNational.find(
+      (r) => r?.tanggal === FIXED_REFERENCE_DATE,
+    );
+    if (byReferenceDate?.harga != null) {
+      return byReferenceDate.harga;
+    }
+
     const s = stats.find((x) => x.komoditas === selectedKomoditasName);
     return s?.harga_rata_nasional || null;
-  }, [stats, selectedKomoditasName]);
+  }, [detailData, stats, selectedKomoditasName]);
 
   const alertsByKomoditas = useMemo(() => {
     if (!selKomoditas || !alerts?.length) return [];
@@ -162,6 +170,7 @@ export default function Dashboard({ onAlertsLoaded }) {
       name: r.provinsi,
       harga: r.harga_sekarang,
       prediksi: isThirtyDays ? r.prediksi_30h : r.prediksi_7h,
+      changePct: isThirtyDays ? r.ubah_30_pct : r.ubah_7_pct,
     }));
   }, [semuaProv, predPeriod]);
 
@@ -227,8 +236,8 @@ export default function Dashboard({ onAlertsLoaded }) {
                 Panduan Singkat Dashboard
               </div>
               <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
-                Pilih <strong>komoditas</strong> dan{" "}
-                <strong>horizon 7/30 hari</strong> di kanan atas.
+                Pilih <strong>Komoditas</strong> dan{" "}
+                <strong>Rentang Prediksi 7/30 hari</strong> di kanan atas.
                 <strong> Peta Risiko</strong> menampilkan level risiko per
                 provinsi, sedangkan
                 <strong> Prediksi Harga</strong> menampilkan tren harga aktual
@@ -265,7 +274,7 @@ export default function Dashboard({ onAlertsLoaded }) {
       >
         <div className="page-header" style={{ marginBottom: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <h2>PanganAI Executive Command Center</h2>
+            <h2>Pusat Komando Eksekutif PanganAI</h2>
             {komoditasList.length > 0 && (
               <span
                 style={{
@@ -281,7 +290,7 @@ export default function Dashboard({ onAlertsLoaded }) {
               </span>
             )}
           </div>
-          <p>AI-Powered National Food Monitoring & Forecasting</p>
+          <p>Pemantauan dan Prediksi Pangan Nasional Berbasis AI</p>
         </div>
       </div>
 
@@ -308,17 +317,17 @@ export default function Dashboard({ onAlertsLoaded }) {
                 icon={AlertTriangle}
                 color="#EF4444"
                 trendPct={alertNaikCount > 0 ? alertNaikCount * 2 : 0}
-                footer={`${alertWarnCount} peringatan sedang`}
+                footer={`${alertNaikCount} peringatan kritis`}
               />
               <MetricCard
                 label="Komoditas Dipantau"
                 value={komoditasList.length}
                 icon={Package}
                 color="#10B981"
-                footer="Beras, Minyak, Cabai"
+                footer="Bawang Merah, Bawang Putih, Beras, Minyak, Cabai Merah, Telur Ayam"
               />
               <MetricCard
-                label="Harga Rata-rata"
+                label="Harga Nasional"
                 value={avgNasional ? formatRupiahShort(avgNasional) : "-"}
                 icon={DollarSign}
                 color="#F97316"
@@ -413,6 +422,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             komoditas={selectedKomoditasName}
             horizon={Number(predPeriod)}
             baseDate={datasetMaxDate}
+            monitoredProvinces={provinsiList}
           />
         )}
       </div>
@@ -428,6 +438,8 @@ export default function Dashboard({ onAlertsLoaded }) {
           selectedKomoditas={selectedKomoditasName}
           horizonDays={Number(predPeriod)}
           semuaProv={semuaProv}
+          geoMode={geoMode}
+          predChart={predChart}
         />
       )}
 

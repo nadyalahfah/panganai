@@ -12,9 +12,9 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 FALLBACK_JSON = {
-    "summary": "Forecast generated successfully.",
-    "risk": "No AI analysis available.",
-    "recommendation": "Use forecast values as reference.",
+    "summary": "Prediksi berhasil dibuat untuk komoditas ini.",
+    "risk": "Analisis risiko AI belum tersedia saat ini.",
+    "recommendation": "Gunakan nilai prediksi sebagai referensi awal pengambilan keputusan.",
 }
 
 _CACHE_LOCK = threading.Lock()
@@ -121,24 +121,25 @@ def _call_azure(payload: dict) -> dict:
         return dict(FALLBACK_JSON)
 
     system_prompt = (
-        "You are an Indonesian food-price analyst.\n"
-        "Your job is to explain forecast results in a concise, professional and actionable way.\n"
-        "Return JSON only.\n"
-        "Required schema:\n"
+        "Anda adalah analis harga pangan Indonesia.\n"
+        "Tugas Anda adalah menjelaskan hasil prediksi secara ringkas, profesional, dan dapat ditindaklanjuti.\n"
+        "WAJIB gunakan Bahasa Indonesia yang jelas dan natural untuk semua nilai output.\n"
+        "Kembalikan JSON saja.\n"
+        "Skema wajib:\n"
         "{\n"
         '  "summary": "...",\n'
         '  "risk": "...",\n'
         '  "recommendation": "..."\n'
         "}\n"
-        "No markdown. No code block. No additional text."
+        "Jangan gunakan markdown. Jangan gunakan code block. Jangan tambahkan teks lain."
     )
 
     user_context = (
-        f"Commodity: {payload['commodity']}\n"
-        f"Current Price: {payload['current_price']}\n"
-        f"Predicted Price: {payload['predicted_price']}\n"
-        f"Change Percent: {payload['change_percent']}%\n"
-        f"Recommendation Data: {payload['recommendation_data']}"
+        f"Komoditas: {payload['commodity']}\n"
+        f"Harga Saat Ini: {payload['current_price']}\n"
+        f"Harga Prediksi: {payload['predicted_price']}\n"
+        f"Persentase Perubahan: {payload['change_percent']}%\n"
+        f"Data Rekomendasi: {payload['recommendation_data']}"
     )
 
     logger.info("insight.azure_call key_payload_commodity=%s", payload["commodity"])

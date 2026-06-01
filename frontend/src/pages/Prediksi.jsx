@@ -10,6 +10,8 @@ import {
   formatRupiah, formatPct, getTrenClass, fetchDashboardInitial
 } from '../api'
 
+const FIXED_REFERENCE_DATE = '2026-05-19'
+
 const AI_INSIGHTS = {
   'Cabai Merah Keriting': {
     title: 'Analisis Tren Cabai Merah Keriting',
@@ -59,7 +61,7 @@ export default function Prediksi() {
   const [aiInsight, setAiInsight] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState(null)
-  const [datasetMaxDate, setDatasetMaxDate] = useState(null)
+  const [datasetMaxDate, setDatasetMaxDate] = useState(FIXED_REFERENCE_DATE)
 
   useEffect(() => {
     async function loadFilters() {
@@ -69,9 +71,7 @@ export default function Prediksi() {
         const prov = provData.map(p => p.nama || p.slug || p).sort((a, b) => a.localeCompare(b));
         setKomoditasList(kom)
         setProvinsiList(prov)
-        if (initData?.metadata?.dataset_max_date) {
-          setDatasetMaxDate(initData.metadata.dataset_max_date)
-        }
+        setDatasetMaxDate(FIXED_REFERENCE_DATE)
         
         const defaultKom = kom.length > 0 ? kom[0] : 'Beras Medium I';
         const defaultProv = prov.length > 0 ? prov[0] : 'DKI Jakarta';

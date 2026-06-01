@@ -3,6 +3,7 @@ import {
   ComposedChart,
   Area,
   XAxis,
+  YAxis,
   CartesianGrid,
   Tooltip,
   ReferenceLine,
@@ -47,6 +48,11 @@ export default function GrafikPrediksi({
 }) {
   const scrollRef = useRef(null);
   const [viewportWidth, setViewportWidth] = useState(0);
+  const forecastLen = prediksi?.length || 0;
+  const effectiveHistoryDays =
+    forecastLen > 0
+      ? Math.max(7, Math.min(historyDays, forecastLen))
+      : historyDays;
 
   const chartData = useMemo(() => {
     const result = [];
@@ -59,10 +65,10 @@ export default function GrafikPrediksi({
           const ts = new Date(d.tanggal).getTime();
           return !Number.isNaN(ts) && ts <= cutoffMs;
         })
-        .slice(-historyDays)
+        .slice(-effectiveHistoryDays)
         .forEach((d) => {
-          result.push({
-            tanggal: d.tanggal,
+        result.push({
+          tanggal: d.tanggal,
             tanggalMs: new Date(d.tanggal).getTime(),
             aktual: d.harga,
             prediksi: null,
@@ -107,13 +113,13 @@ export default function GrafikPrediksi({
       });
     }
     return result;
-  }, [historis, prediksi, historyDays, tanggalHariIni]);
+  }, [historis, prediksi, effectiveHistoryDays, tanggalHariIni]);
 
   const chartWidth = useMemo(() => {
-    const pxPerPoint = 34;
-    const minWidth = 980;
+    const pxPerPoint = 24;
+    const minWidth = Math.max(640, viewportWidth || 0);
     return Math.max(minWidth, chartData.length * pxPerPoint);
-  }, [chartData.length]);
+  }, [chartData.length, viewportWidth]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -145,14 +151,29 @@ export default function GrafikPrediksi({
   if (chartData.length === 0)
     return <div className="skeleton skeleton-chart" />;
 
-  const allVals = chartData.flatMap((d) =>
-    [d.aktual, d.prediksi].filter(Boolean),
+  const actualVals = chartData
+    .map((d) => d.aktual)
+    .filter((v) => v !== null && v !== undefined);
+  const predVals = chartData
+    .map((d) => d.prediksi)
+    .filter((v) => v !== null && v !== undefined);
+
+  const actualMin = actualVals.length ? Math.min(...actualVals) : null;
+  const actualMax = actualVals.length ? Math.max(...actualVals) : null;
+  const predMin = predVals.length ? Math.min(...predVals) : null;
+  const predMax = predVals.length ? Math.max(...predVals) : null;
+
+  const globalTop = Math.max(
+    ...(actualMax !== null ? [actualMax] : []),
+    ...(predMax !== null ? [predMax] : []),
   );
-  const minVal = Math.min(...allVals),
-    maxVal = Math.max(...allVals);
-  const padding = (maxVal - minVal) * 0.02 || 500;
-  const yMin = Math.max(0, Math.floor((minVal - padding) / 1000) * 1000);
-  const yMax = Math.ceil((maxVal + padding) / 1000) * 1000;
+  const globalBottom = Math.min(
+    ...(actualMin !== null ? [actualMin] : []),
+    ...(predMin !== null ? [predMin] : []),
+  );
+
+  const yMin = Math.max(0, Math.floor((globalBottom - 5000) / 1000) * 1000);
+  const yMax = Math.ceil((globalTop + 5000) / 1000) * 1000;
   const yTicks = useMemo(() => {
     const count = 5;
     const step = (yMax - yMin) / (count - 1 || 1);
@@ -169,7 +190,10 @@ export default function GrafikPrediksi({
         }
       `}</style>
       <div className="chart-card-header" style={{ marginBottom: 16 }}>
-        <div className="chart-card-title" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <div
+          className="chart-card-title"
+          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
           <TrendingUp size={16} />
           <span>Harga Nasional - {komoditas}</span>
         </div>
@@ -215,7 +239,8 @@ export default function GrafikPrediksi({
           <div style={{ position: "relative", width: "100%", height: "100%" }}>
             {yTicks.map((tick, idx) => {
               const ratio = yTicks.length > 1 ? idx / (yTicks.length - 1) : 0;
-              const y = 10 + ratio * 315;
+              // Sync with chart plot area: height(330) - top(10) - bottom(5) - xAxis(30) = 285
+              const y = 10 + ratio * 285;
               return (
                 <div
                   key={tick}
@@ -267,17 +292,18 @@ export default function GrafikPrediksi({
               stroke="#F3F4F6"
               vertical={false}
             />
-            <XAxis
-              dataKey="tanggalMs"
-              type="number"
-              scale="time"
-              domain={["dataMin", "dataMax"]}
-              tickFormatter={formatTanggalShort}
-              tick={{ fontSize: 10, fill: "#9CA3AF" }}
-              interval="preserveStartEnd"
-              minTickGap={50}
-            />
-            <Tooltip content={<CustomTooltip />} />
+          <XAxis
+            dataKey="tanggalMs"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={formatTanggalShort}
+            tick={{ fontSize: 10, fill: "#9CA3AF" }}
+            interval="preserveStartEnd"
+            minTickGap={50}
+          />
+          <YAxis domain={[yMin, yMax]} hide />
+          <Tooltip content={<CustomTooltip />} />
             {tanggalHariIni && (
               <ReferenceLine
                 x={new Date(tanggalHariIni).getTime()}
