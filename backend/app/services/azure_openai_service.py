@@ -17,6 +17,68 @@ FALLBACK_JSON = {
     "recommendation": "Gunakan nilai prediksi sebagai referensi awal pengambilan keputusan.",
 }
 
+
+def _fallback_from_payload(payload: dict) -> dict:
+    commodity = str(payload.get("commodity") or "komoditas ini").replace("-", " ")
+    current_price = float(payload.get("current_price") or 0)
+    predicted_price = float(payload.get("predicted_price") or 0)
+    change_pct = float(payload.get("change_percent") or 0)
+    abs_pct = abs(change_pct)
+    direction = "naik" if change_pct > 0 else ("turun" if change_pct < 0 else "stabil")
+
+    if abs_pct >= 20:
+        level = "kritis"
+        risk = (
+            f"Perubahan harga berada pada level kritis ({change_pct:.1f}%). "
+            "Ada risiko kuat terhadap stabilitas pasokan dan daya beli."
+        )
+        recommendation = (
+            "Lakukan intervensi pasokan, percepat distribusi dari wilayah surplus, "
+            "dan tingkatkan pemantauan harian lintas provinsi."
+        )
+    elif abs_pct >= 10:
+        level = "berisiko tinggi"
+        risk = (
+            f"Perubahan harga berada pada level berisiko tinggi ({change_pct:.1f}%). "
+            "Jika tren berlanjut, tekanan harga dapat meluas."
+        )
+        recommendation = (
+            "Perkuat pemantauan pasar, validasi kondisi pasokan lapangan, "
+            "dan siapkan langkah stabilisasi bertahap."
+        )
+    elif abs_pct >= 5:
+        level = "waspada"
+        risk = (
+            f"Perubahan harga masuk kategori waspada ({change_pct:.1f}%). "
+            "Gejolak masih moderat namun perlu dijaga agar tidak meningkat."
+        )
+        recommendation = (
+            "Lakukan monitor lanjut pergerakan harga dan stok, serta antisipasi "
+            "gangguan distribusi jangka pendek."
+        )
+    else:
+        level = "aman"
+        risk = (
+            f"Perubahan harga berada pada level aman ({change_pct:.1f}%). "
+            "Tidak ada indikasi tekanan harga yang signifikan saat ini."
+        )
+        recommendation = (
+            "Pertahankan pemantauan rutin dan gunakan prediksi sebagai acuan "
+            "validasi dini terhadap potensi perubahan tren."
+        )
+
+    summary = (
+        f"Harga {commodity} diproyeksikan {direction} {abs_pct:.1f}% "
+        f"dari sekitar Rp{current_price:,.0f} ke Rp{predicted_price:,.0f} "
+        f"dengan status {level}."
+    ).replace(",", ".")
+
+    return {
+        "summary": summary,
+        "risk": risk,
+        "recommendation": recommendation,
+    }
+
 _CACHE_LOCK = threading.Lock()
 _INSIGHT_CACHE: dict[str, dict] = {}
 _INFLIGHT_EVENTS: dict[str, threading.Event] = {}
@@ -118,7 +180,7 @@ def _call_azure(payload: dict) -> dict:
     client = get_client()
     if not client:
         logger.warning("Fallback activated: Azure OpenAI client not initialized (missing API key).")
-        return dict(FALLBACK_JSON)
+        return _fallback_from_payload(payload)
 
     system_prompt = (
         "Anda adalah analis harga pangan Indonesia.\n"
@@ -225,7 +287,7 @@ def generate_market_insight(
             logger.error("Response failure: Exception occurred during AI generation: %s", exc)
             logger.info("insight.fallback_returned reason=azure_error key=%s", key)
             fallback_val = {
-                **FALLBACK_JSON,
+                **_fallback_from_payload(payload),
                 "generated_at": _iso_now(),
                 "cache_hit": False,
                 "cache_key": key,

@@ -6,6 +6,7 @@ import {
   ShieldAlert,
   Bot,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import SectionWrapper from "./SectionWrapper";
 import { getAIInsight } from "../services/aiInsightService";
@@ -79,6 +80,7 @@ export default function AICommodityIntelligence({
   const [loading, setLoading] = useState(false);
   const [briefing, setBriefing] = useState(null);
   const [error, setError] = useState(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   // Cache to prevent re-generation delays
   const [cache, setCache] = useState({});
@@ -90,6 +92,7 @@ export default function AICommodityIntelligence({
       komoditas: selectedKomoditas,
       horizon: horizonDays,
       mode: geoMode,
+      refreshNonce,
       alertsSize: alerts?.length || 0,
       provSize: semuaProv?.length || 0,
       histSize: predChart?.historis?.length || 0,
@@ -158,6 +161,7 @@ export default function AICommodityIntelligence({
               : "Tidak ada kasus kedua prioritas tinggi.",
             "Instruksi output ringkasan: jika ada status waspada/berisiko tinggi/kritis, jelaskan ringkasan dalam 1 paragraf yang menyoroti penyebab utama dan dampak.",
             "Jika semua aman, nyatakan kondisi aman dan boleh tambahkan catatan anomali ringan jika ada.",
+            refreshNonce > 0 ? `Permintaan refresh manual ke-${refreshNonce}.` : "",
           ];
 
           payload = {
@@ -180,6 +184,7 @@ export default function AICommodityIntelligence({
             `Harga prediksi horizon: ${national.forecastPrice}. Perubahan prediksi vs harga saat ini: ${national.forecastChangePct.toFixed(2)}%.`,
             `Ringkasan risiko provinsi pendukung (untuk konteks): Kritis ${critical.length}, Berisiko Tinggi ${high.length}, Waspada ${watch.length}, Aman ${safe.length}.`,
             "Instruksi output ringkasan: jelaskan kenapa harga hari ini naik/turun/stabil, bagaimana arah prediksi, risiko yang mungkin muncul, lalu rekomendasi tindakan.",
+            refreshNonce > 0 ? `Permintaan refresh manual ke-${refreshNonce}.` : "",
           ];
 
           payload = {
@@ -214,7 +219,7 @@ export default function AICommodityIntelligence({
     return () => {
       isMounted = false;
     };
-  }, [selectedKomoditas, horizonDays, geoMode, alerts, semuaProv, predChart, cache]);
+  }, [selectedKomoditas, horizonDays, geoMode, alerts, semuaProv, predChart, cache, refreshNonce]);
 
   if (!selectedKomoditas) return null;
 
@@ -224,6 +229,29 @@ export default function AICommodityIntelligence({
       title="Ringkasan Eksekutif AI"
       badge="AZURE OPENAI"
       subtitle="Dihasilkan oleh Azure OpenAI GPT-4.1-mini"
+      rightContent={
+        <button
+          type="button"
+          onClick={() => setRefreshNonce((v) => v + 1)}
+          disabled={loading}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            border: "1px solid #CBD5E1",
+            background: loading ? "#F1F5F9" : "#FFFFFF",
+            color: "#0F172A",
+            borderRadius: 8,
+            padding: "8px 12px",
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          Refresh Rekomendasi
+        </button>
+      }
     >
       <div style={{ minHeight: 300 }}>
         {loading ? (

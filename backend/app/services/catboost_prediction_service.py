@@ -8,6 +8,7 @@ from catboost import CatBoostRegressor
 from catboost import Pool
 
 from app.utils.converters import safe_float
+from app.core.config import settings
 
 logger = logging.getLogger("panganai")
 
@@ -408,6 +409,34 @@ def get_all_province_predictions_legacy_contract(app_state, komoditas):
 
 
 def get_alerts_from_catboost(app_state, kenaikan_min_pct=5.0):
+    def _risk_level(pct: float) -> str:
+        ap = abs(pct)
+        if ap >= 20:
+            return "CRITICAL"
+        if ap >= 10:
+            return "HIGH"
+        if ap >= 5:
+            return "WATCH"
+        return "LOW"
+
+    def _reasoning(provinsi: str, komoditas: str, base: float, pred7: float, pred30: float | None, pct7: float) -> str:
+        arah = "naik" if pct7 > 0 else ("turun" if pct7 < 0 else "stabil")
+        level = _risk_level(pct7)
+        if level == "CRITICAL":
+            awalan = "Perubahan harga sangat tajam dan berisiko mengganggu stabilitas pasokan."
+        elif level == "HIGH":
+            awalan = "Pergerakan harga cukup tinggi dan perlu pengawasan intensif."
+        elif level == "WATCH":
+            awalan = "Terlihat gejolak harga awal yang perlu dipantau agar tidak bereskalasi."
+        else:
+            awalan = "Perubahan harga masih relatif terkendali."
+        return (
+            f"{awalan} Di {provinsi}, {komoditas} diproyeksikan {arah} "
+            f"{abs(pct7):.1f}% dalam 7 hari (dari Rp{base:,.0f} ke Rp{pred7:,.0f}). "
+            f"Proyeksi 30 hari berada di sekitar Rp{(pred30 or pred7):,.0f}."
+        ).replace(",", ".")
+
+    kenaikan_min_pct = float(getattr(settings, "ALERT_MIN_CHANGE_PCT", kenaikan_min_pct))
     alerts = []
     service = getattr(app_state, "catboost_prediction_service", None)
     if service is None:
@@ -421,22 +450,27 @@ def get_alerts_from_catboost(app_state, kenaikan_min_pct=5.0):
         g = grp.sort_values("target_date")
         base = safe_float(g.iloc[0].get("harga_terakhir") if "harga_terakhir" in g.columns else g.iloc[0].get("harga"))
         pred7 = _pick_horizon_pred(g, 7, 6)
+        pred30 = _pick_horizon_pred(g, 30, len(g) - 1)
         if base is None or pred7 is None:
             continue
         kenaikan_pct = round(((pred7 - base) / base) * 100, 1) if base else 0
-        if kenaikan_pct < kenaikan_min_pct:
+        if abs(kenaikan_pct) < kenaikan_min_pct:
             continue
+        ubah_30_pct = round(((pred30 - base) / base) * 100, 1) if (base and pred30 is not None) else 0
+        risk_level = _risk_level(kenaikan_pct)
         alerts.append({
             "provinsi": provinsi,
             "komoditas": komoditas,
             "harga_sekarang": base,
             "prediksi_7h": pred7,
+            "prediksi_30h": pred30,
             "kenaikan_pct": kenaikan_pct,
-            "risk_level": "N/A",
-            "ai_reasoning": "Auto-generated from CatBoost H+7 uplift.",
+            "ubah_30_pct": ubah_30_pct,
+            "risk_level": risk_level,
+            "ai_reasoning": _reasoning(provinsi, komoditas, base, pred7, pred30, kenaikan_pct),
             "engine": "catboost",
         })
-    return sorted(alerts, key=lambda x: x.get("kenaikan_pct", 0), reverse=True)
+    return sorted(alerts, key=lambda x: abs(x.get("kenaikan_pct", 0)), reverse=True)
 
 
 def get_national_statistics_from_catboost(df_semua, app_state):

@@ -1,8 +1,13 @@
 ﻿import React, { useState, useMemo } from "react";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+} from "react-simple-maps";
 import { formatRupiah, formatTanggalFull } from "../api";
 
-const geoUrl = "/indonesia-province-simple.json";
+const geoUrl = "/indonesia-province.json";
 
 export default function IndonesiaMap({
   data,
@@ -26,31 +31,154 @@ export default function IndonesiaMap({
   };
 
   const PROV_ALIASES = {
+    // Jakarta & Yogyakarta
     "DKI JAKARTA": "DKI JAKARTA",
     "DAERAH KHUSUS IBUKOTA JAKARTA": "DKI JAKARTA",
+
     "DI YOGYAKARTA": "DI YOGYAKARTA",
     "D I YOGYAKARTA": "DI YOGYAKARTA",
+    "DI ACEH": "ACEH",
+    "DI. ACEH": "ACEH",
     "DAERAH ISTIMEWA YOGYAKARTA": "DI YOGYAKARTA",
+
+    // Aceh
+    ACEH: "ACEH",
+    "NANGGROE ACEH DARUSSALAM": "ACEH",
+
+    // Banten
+    BANTEN: "BANTEN",
+    PROBANTEN: "BANTEN",
+    "PROV BANTEN": "BANTEN",
+    "PROVINSI BANTEN": "BANTEN",
+
+    // Bangka Belitung
     "KEPULAUAN BANGKA BELITUNG": "BANGKA BELITUNG",
     "KEP BANGKA BELITUNG": "BANGKA BELITUNG",
     "BANGKA BELITUNG": "BANGKA BELITUNG",
+
+    // Kepulauan Riau
     "KEPULAUAN RIAU": "KEPULAUAN RIAU",
     "KEP RIAU": "KEPULAUAN RIAU",
+
+    // Nusa Tenggara
+    "NUSATENGGARA BARAT": "NUSA TENGGARA BARAT",
     "NUSA TENGGARA BARAT": "NUSA TENGGARA BARAT",
+    "NUSATENGGARA TIMUR": "NUSA TENGGARA TIMUR",
     "NUSA TENGGARA TIMUR": "NUSA TENGGARA TIMUR",
+
+    // Papua lama ke Papua modern
+    "IRIAN JAYA TIMUR": "PAPUA",
+    "IRIAN JAYA TENGAH": "PAPUA",
+    "IRIAN JAYA BARAT": "PAPUA BARAT",
+
+    PAPUA: "PAPUA",
     "PAPUA BARAT": "PAPUA BARAT",
+
+    // Kalau GeoJSON kamu 38 provinsi, tapi backend masih 34
     "PAPUA BARAT DAYA": "PAPUA BARAT",
     "PAPUA SELATAN": "PAPUA",
     "PAPUA TENGAH": "PAPUA",
     "PAPUA PEGUNUNGAN": "PAPUA",
-    "SULAWESI BARAT": "SULAWESI BARAT",
+
+    // Kalimantan
+    "KALIMANTAN BARAT": "KALIMANTAN BARAT",
+    "KALIMANTAN TENGAH": "KALIMANTAN TENGAH",
+    "KALIMANTAN SELATAN": "KALIMANTAN SELATAN",
+    "KALIMANTAN TIMUR": "KALIMANTAN TIMUR",
     "KALIMANTAN UTARA": "KALIMANTAN UTARA",
+
+    // Sulawesi
+    "SULAWESI UTARA": "SULAWESI UTARA",
+    "SULAWESI TENGAH": "SULAWESI TENGAH",
+    "SULAWESI SELATAN": "SULAWESI SELATAN",
+    "SULAWESI TENGGARA": "SULAWESI TENGGARA",
+    "SULAWESI BARAT": "SULAWESI BARAT",
+    GORONTALO: "GORONTALO",
+
+    // Maluku
+    MALUKU: "MALUKU",
+    "MALUKU UTARA": "MALUKU UTARA",
+
+    // Sumatera
+    "SUMATERA UTARA": "SUMATERA UTARA",
+    "SUMATERA BARAT": "SUMATERA BARAT",
+    "SUMATERA SELATAN": "SUMATERA SELATAN",
+    RIAU: "RIAU",
+    JAMBI: "JAMBI",
+    BENGKULU: "BENGKULU",
+    LAMPUNG: "LAMPUNG",
+
+    // Jawa & Bali
+    "JAWA BARAT": "JAWA BARAT",
+    "JAWA TENGAH": "JAWA TENGAH",
+    "JAWA TIMUR": "JAWA TIMUR",
+    BALI: "BALI",
+  };
+
+  const PROVINCE_COORDS = {
+    ACEH: [96.91, 4.69],
+    "SUMATERA UTARA": [99.06, 2.12],
+    "SUMATERA BARAT": [100.47, -0.85],
+    RIAU: [101.81, 0.51],
+    JAMBI: [103.61, -1.61],
+    "SUMATERA SELATAN": [104.75, -3.32],
+    BENGKULU: [102.26, -3.79],
+    LAMPUNG: [105.26, -5.45],
+    "BANGKA BELITUNG": [106.44, -2.74],
+    "KEPULAUAN RIAU": [104.45, 0.92],
+
+    "DKI JAKARTA": [106.83, -6.2],
+    "JAWA BARAT": [107.6, -6.9],
+    "JAWA TENGAH": [110.42, -7.15],
+    "DI YOGYAKARTA": [110.37, -7.8],
+    "JAWA TIMUR": [112.75, -7.25],
+    BANTEN: [106.16, -6.12],
+    BALI: [115.18, -8.65],
+
+    "NUSA TENGGARA BARAT": [117.36, -8.65],
+    "NUSA TENGGARA TIMUR": [121.08, -8.65],
+
+    "KALIMANTAN BARAT": [111.1, -0.1],
+    "KALIMANTAN TENGAH": [113.92, -1.68],
+    "KALIMANTAN SELATAN": [115.22, -3.09],
+    "KALIMANTAN TIMUR": [116.99, 0.54],
+    "KALIMANTAN UTARA": [117.36, 2.8],
+
+    "SULAWESI UTARA": [124.85, 1.49],
+    "SULAWESI TENGAH": [120.0, -1.43],
+    "SULAWESI SELATAN": [119.7, -4.6],
+    "SULAWESI TENGGARA": [122.07, -4.0],
+    GORONTALO: [123.06, 0.7],
+    "SULAWESI BARAT": [119.32, -2.84],
+
+    MALUKU: [129.36, -3.7],
+    "MALUKU UTARA": [127.8, 0.63],
+    PAPUA: [138.08, -4.27],
+    "PAPUA BARAT": [132.9, -1.34],
+  };
+
+  const getGeoProvName = (properties = {}) => {
+    return (
+      properties.Propinsi ||
+      properties.PROVINSI ||
+      properties.provinsi ||
+      properties.Provinsi ||
+      properties.NAMOBJ ||
+      properties.NAME_1 ||
+      properties.NAME ||
+      properties.name ||
+      properties.prov_name ||
+      properties.province ||
+      properties.Province ||
+      ""
+    );
   };
 
   const toCanonicalProv = (name) => {
     const key = normalizeProvName(name);
+
     const spacedKey = key
-      .replace(/^NUSATENGGARA /, "NUSA TENGGARA ")
+      .replace(/^NUSATENGGARA/, "NUSA TENGGARA")
       .replace(/^KEPULAUAN/, "KEPULAUAN ")
       .replace(/^SULAWESI/, "SULAWESI ")
       .replace(/^KALIMANTAN/, "KALIMANTAN ")
@@ -60,6 +188,7 @@ export default function IndonesiaMap({
       .replace(/^PAPUA/, "PAPUA ")
       .replace(/\s+/g, " ")
       .trim();
+
     return PROV_ALIASES[spacedKey] || PROV_ALIASES[key] || spacedKey;
   };
 
@@ -129,6 +258,9 @@ export default function IndonesiaMap({
         color,
       };
     });
+
+    console.log("Kalbar data:", mapData["KALIMANTAN BARAT"]);
+    console.log("All backend map keys:", Object.keys(mapData));
     return mapData;
   }, [data]);
 
@@ -159,17 +291,32 @@ export default function IndonesiaMap({
   };
 
   const handleMouseEnter = (geo, e) => {
-    const provName = toBackendProv(geo.properties.Propinsi);
+    const rawGeoName = getGeoProvName(geo.properties);
+    const provName = toBackendProv(rawGeoName);
+
     const provData = provDataMap[provName] || {
-      name: geo.properties.Propinsi,
+      name: rawGeoName || "Provinsi tidak terbaca",
       harga: 0,
       prediksi: 0,
       changePct: 0,
-      status: "Aman",
-      color: "#CBD5E1", // gray for no data
+      status: "Tidak Ada Data",
+      color: "#CBD5E1",
     };
 
-    setHoverRegion({ ...provData, rawName: geo.properties.Propinsi });
+    setHoverRegion({ ...provData, rawName: rawGeoName });
+    updateTooltipPos(e.clientX, e.clientY);
+  };
+
+  const handleMarkerEnter = (provName, e) => {
+    const provData = provDataMap[provName];
+
+    if (!provData) return;
+
+    setHoverRegion({
+      ...provData,
+      rawName: provName,
+    });
+
     updateTooltipPos(e.clientX, e.clientY);
   };
 
@@ -182,8 +329,9 @@ export default function IndonesiaMap({
   };
 
   const handleClick = (geo) => {
-    const provName = toBackendProv(geo.properties.Propinsi);
-    // Toggle selection
+    const rawGeoName = getGeoProvName(geo.properties);
+    const provName = toBackendProv(rawGeoName);
+
     if (selectedProv === provName) {
       setSelectedProv(null);
     } else {
@@ -224,11 +372,18 @@ export default function IndonesiaMap({
         style={{ width: "100%", height: "100%" }}
       >
         <Geographies geography={geoUrl}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
-              const provName = toBackendProv(geo.properties.Propinsi);
+          {({ geographies }) => {
+            console.log(
+              "All province raw names:",
+              geographies.map((geo) => getGeoProvName(geo.properties)),
+            );
+
+            return geographies.map((geo) => {
+              const rawGeoName = getGeoProvName(geo.properties);
+              const provName = toBackendProv(rawGeoName);
               const d = provDataMap[provName];
-              const defaultColor = "#CBD5E1"; // no-data default
+
+              const defaultColor = "#CBD5E1";
               const fillColor = d ? d.color : defaultColor;
               const isSelected = selectedProv === provName;
 
@@ -266,9 +421,28 @@ export default function IndonesiaMap({
                   }}
                 />
               );
-            })
-          }
+            });
+          }}
         </Geographies>
+        {Object.entries(provDataMap).map(([provName, prov]) => {
+          const coords = PROVINCE_COORDS[provName];
+          if (!coords) return null;
+
+          return (
+            <Marker key={provName} coordinates={coords}>
+              <circle
+                r={provName === "KALIMANTAN UTARA" ? 6 : 4}
+                fill={prov.color}
+                stroke="#111827"
+                strokeWidth={1}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={(e) => handleMarkerEnter(provName, e)}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+              />
+            </Marker>
+          );
+        })}
       </ComposableMap>
 
       {/* Legend */}

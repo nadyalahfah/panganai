@@ -174,6 +174,37 @@ export default function Dashboard({ onAlertsLoaded }) {
     }));
   }, [semuaProv, predPeriod]);
 
+  const ewsAlerts = useMemo(() => {
+    const isThirtyDays = predPeriod === "30";
+    return (semuaProv || [])
+      .map((r) => {
+        const pct = Number(isThirtyDays ? r.ubah_30_pct : r.ubah_7_pct) || 0;
+        const pred = isThirtyDays ? r.prediksi_30h : r.prediksi_7h;
+        return {
+          provinsi: r.provinsi,
+          komoditas: selectedKomoditasName,
+          harga_sekarang: r.harga_sekarang,
+          prediksi_7h: r.prediksi_7h,
+          prediksi_30h: r.prediksi_30h,
+          kenaikan_pct: pct,
+          risk_level:
+            Math.abs(pct) >= 20
+              ? "CRITICAL"
+              : Math.abs(pct) >= 10
+                ? "HIGH"
+                : Math.abs(pct) >= 5
+                  ? "WATCH"
+                  : "LOW",
+          ai_reasoning:
+            pct === 0
+              ? `Harga ${selectedKomoditasName} di ${r.provinsi} diproyeksikan stabil pada horizon ${predPeriod} hari.`
+              : `Harga ${selectedKomoditasName} di ${r.provinsi} diproyeksikan ${pct > 0 ? "naik" : "turun"} ${Math.abs(pct).toFixed(1)}% pada horizon ${predPeriod} hari (ke sekitar Rp${Number(pred || 0).toLocaleString("id-ID")}).`,
+        };
+      })
+      .filter((a) => Math.abs(a.kenaikan_pct) >= 5)
+      .sort((a, b) => Math.abs(b.kenaikan_pct) - Math.abs(a.kenaikan_pct));
+  }, [semuaProv, predPeriod, selectedKomoditasName]);
+
   const formatTs = (d) =>
     d
       ? d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
@@ -449,10 +480,49 @@ export default function Dashboard({ onAlertsLoaded }) {
           style={{ height: 400, borderRadius: 8, marginBottom: 24 }}
         />
       ) : (
-        <EarlyWarningSystem
-          alerts={alertsByKomoditas}
-          horizonDays={Number(predPeriod)}
-        />
+        <>
+          <div
+            style={{
+              marginBottom: 12,
+              border: "1px solid #C7D2FE",
+              background: "linear-gradient(90deg, #EEF2FF 0%, #F8FAFC 100%)",
+              borderRadius: 10,
+              padding: "10px 12px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#1E3A8A",
+                marginBottom: 6,
+              }}
+            >
+              Panduan Aksi Early Warning
+            </div>
+            <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.6 }}>
+              <strong>Intervensi Pasokan</strong>: lakukan operasi pasar,
+              percepat distribusi dari wilayah surplus, dan koordinasi stok
+              cadangan untuk meredam lonjakan harga.
+              <br />
+              <strong>Inspeksi Lapangan</strong>: validasi penyebab kenaikan di
+              pasar/sentra produksi (pasokan, logistik, cuaca, dan rantai
+              distribusi) lalu siapkan tindak lanjut cepat.
+              <br />
+              <strong>Monitor Lanjut</strong>: tingkatkan frekuensi pemantauan
+              (intra-hari/harian), cek pergerakan harga antar pasar, dan
+              siapkan skenario respons bila tren memburuk.
+              <br />
+              <strong>Pantau</strong>: pemantauan berkala harian pada komoditas
+              dengan gejolak ringan agar tidak meningkat ke level risiko lebih
+              tinggi.
+            </div>
+          </div>
+          <EarlyWarningSystem
+            alerts={ewsAlerts}
+            horizonDays={Number(predPeriod)}
+          />
+        </>
       )}
 
       <DistributionOptimizer

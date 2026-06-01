@@ -64,6 +64,7 @@ class Settings:
     AI_INSIGHT_CACHE_TTL_SECONDS = int(os.getenv("AI_INSIGHT_CACHE_TTL_SECONDS", "21600"))
     AI_INSIGHT_FALLBACK_TTL_SECONDS = int(os.getenv("AI_INSIGHT_FALLBACK_TTL_SECONDS", "300"))
     AI_INSIGHT_RATE_GUARD_SECONDS = int(os.getenv("AI_INSIGHT_RATE_GUARD_SECONDS", "30"))
+    ALERT_MIN_CHANGE_PCT = float(os.getenv("ALERT_MIN_CHANGE_PCT", "5"))
 
 
 settings = Settings()

@@ -3,28 +3,28 @@ import { AlertTriangle, AlertCircle, Info, Activity, ChevronRight, Zap, Target, 
 import { getKomoditasClass } from '../api';
 import SectionWrapper from './SectionWrapper';
 
-export default function EarlyWarningSystem({ alerts }) {
+export default function EarlyWarningSystem({ alerts, horizonDays = 7 }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
 const processedAlerts = useMemo(() => {
     if (!alerts) return [];
     
     return alerts.map(a => {
-      let level = 'Low';
+      let level = 'Rendah';
       let colorClass = 'info'; 
       let bg = '#F1F5F9';
       let color = '#64748B';
       let Icon = Info;
-      let action = 'Monitor';
+      let action = 'Pantau';
       let cause = a.ai_reasoning || 'Fluktuasi dalam batas wajar';
       let distRec = '';
       
       // Derive action from level if not explicitly provided
       const risk = (a.risk_level || '').toUpperCase();
-      const pct = a.kenaikan_pct || 0;
+      const pct = Number(a.kenaikan_pct || 0);
       
       if (risk === 'CRITICAL' || pct > 15) {
-        level = 'Critical';
+        level = 'Kritis';
         colorClass = 'danger';
         bg = '#FEF2F2';
         color = '#EF4444';
@@ -32,7 +32,7 @@ const processedAlerts = useMemo(() => {
         action = 'Intervensi Pasokan';
         if (!cause || cause.length < 10) cause = 'Indikasi defisit pasokan serius.';
       } else if (risk === 'HIGH' || pct >= 10) {
-        level = 'High';
+        level = 'Tinggi';
         colorClass = 'warning';
         bg = '#FFF7ED';
         color = '#F97316';
@@ -40,7 +40,7 @@ const processedAlerts = useMemo(() => {
         action = 'Inspeksi Lapangan';
         if (!cause || cause.length < 10) cause = 'Tren kenaikan harga signifikan.';
       } else if (risk === 'WATCH' || pct >= 5) {
-        level = 'Medium';
+        level = 'Waspada';
         colorClass = 'info';
         bg = '#FEF9C3';
         color = '#CA8A04';
@@ -50,17 +50,17 @@ const processedAlerts = useMemo(() => {
       }
 
       return {
-        ...a, level, colorClass, bg, color, Icon, action, cause, distRec, days: 7
+        ...a, level, colorClass, bg, color, Icon, action, cause, distRec, days: horizonDays
       };
-    }).sort((a, b) => (b.kenaikan_pct || 0) - (a.kenaikan_pct || 0));
-  }, [alerts]);
+    }).sort((a, b) => Math.abs(b.kenaikan_pct || 0) - Math.abs(a.kenaikan_pct || 0));
+  }, [alerts, horizonDays]);
 
   const activeAlert = processedAlerts[activeIdx] || null;
 
   return (
     <SectionWrapper
       icon={Bell}
-      title="Early Warning System"
+      title="Sistem Peringatan Dini"
       subtitle="Deteksi dini anomali harga dan risiko pasokan"
     >
       <div className="ews-panel" style={{ display: 'flex', gap: 20, minHeight: 450 }}>
@@ -72,7 +72,7 @@ const processedAlerts = useMemo(() => {
             <span style={{ fontWeight: 'bold', fontSize: 15, color: '#0F172A' }}>Monitoring Anomali Nasional</span>
           </div>
           <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600, background: '#E2E8F0', padding: '4px 10px', borderRadius: 20 }}>
-            Top {Math.min(10, processedAlerts.length)} Alerts
+            Top {Math.min(10, processedAlerts.length)} Peringatan
           </span>
         </div>
 
@@ -85,8 +85,8 @@ const processedAlerts = useMemo(() => {
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}>PROVINSI</th>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}>RISIKO</th>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700, textAlign: 'right' }}>Δ HARGA</th>
-                <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700, textAlign: 'center' }}>HORIZON</th>
-                <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}>RECOMMENDED ACTION</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700, textAlign: 'center' }}>RENTANG PREDIKSI</th>
+                <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}>AKSI REKOMENDASI</th>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700 }}></th>
               </tr>
             </thead>
@@ -163,7 +163,7 @@ const processedAlerts = useMemo(() => {
         <div style={{ padding: '14px 20px', background: '#F8FAFC', borderBottom: '1px solid var(--gray-200)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Zap size={16} color="#3B82F6" fill="#3B82F6" opacity={0.2} />
-            <span style={{ fontWeight: 'bold', fontSize: 14, color: '#0F172A' }}>AI Recommendation</span>
+            <span style={{ fontWeight: 'bold', fontSize: 14, color: '#0F172A' }}>Rekomendasi AI</span>
           </div>
         </div>
 
@@ -184,11 +184,11 @@ const processedAlerts = useMemo(() => {
               <div style={{ background: '#F8FAFC', padding: 12, borderRadius: 8, border: '1px solid #E2E8F0' }}>
                 <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, marginBottom: 4 }}>STATUS</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: activeAlert.color, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <activeAlert.Icon size={16} /> {activeAlert.level.toUpperCase()}
+                  <activeAlert.Icon size={16} /> {activeAlert.level}
                 </div>
               </div>
               <div style={{ background: '#F8FAFC', padding: 12, borderRadius: 8, border: '1px solid #E2E8F0' }}>
-                <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, marginBottom: 4 }}>PREDIKSI & HORIZON</div>
+                <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, marginBottom: 4 }}>PREDIKSI & RENTANG</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>
                   +{activeAlert.kenaikan_pct.toFixed(1)}% <span style={{ fontSize: 12, fontWeight: 500, color: '#64748B' }}>/ {activeAlert.days}H</span>
                 </div>
@@ -214,7 +214,7 @@ const processedAlerts = useMemo(() => {
                 <div style={{ fontSize: 13, color: '#1E293B', lineHeight: 1.5, background: `${activeAlert.color}10`, borderLeft: `3px solid ${activeAlert.color}`, padding: '10px 12px', borderRadius: '0 8px 8px 0' }}>
                   {activeAlert.action}
                 </div>
-                {activeAlert.level === 'Critical' && (
+                {activeAlert.level === 'Kritis' && (
                   <div style={{ fontSize: 13, color: '#1E293B', lineHeight: 1.5, background: '#EFF6FF', borderLeft: '3px solid #3B82F6', padding: '10px 12px', borderRadius: '0 8px 8px 0' }}>
                     {activeAlert.distRec}
                   </div>
