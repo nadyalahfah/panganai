@@ -52,28 +52,43 @@ async def lifespan(app):
 
         model_artifacts_ready = True
 
-        if current_settings.USE_AZURE_BLOB:
-            blob_storage = BlobStorageService(current_settings)
-            try:
-                model_path = blob_storage.download_blob_if_needed(
-                    current_settings.AZURE_MODEL_BLOB,
-                    current_settings.LOCAL_MODEL_PATH,
-                )
-                inference_input_path = blob_storage.download_blob_if_needed(
-                    current_settings.AZURE_INFERENCE_INPUT_BLOB,
-                    current_settings.LOCAL_INFERENCE_INPUT_PATH,
-                )
-            except Exception as exc:
-                model_artifacts_ready = False
-                logger.error("Model artifacts unavailable from blob storage: %s", exc)
+        storage_ready = False
+        storage_error = None
 
+        if current_settings.USE_AZURE_BLOB:
             try:
-                historical_parquet_path = blob_storage.download_blob_if_needed(
-                    current_settings.AZURE_HISTORICAL_PRICE_PARQUET_BLOB,
-                    current_settings.LOCAL_HISTORICAL_PRICE_PARQUET_PATH,
-                )
+                blob_storage = BlobStorageService(current_settings)
+                storage_ready = True
             except Exception as exc:
-                logger.error("Historical artifact download failed (will fallback to CSV if possible): %s", exc)
+                blob_storage = None
+                storage_error = str(exc)
+                model_artifacts_ready = Path(model_path).exists() and Path(inference_input_path).exists()
+                logger.error(
+                    "Azure Blob Storage unavailable, continuing with local artifacts if present: %s",
+                    exc,
+                )
+
+            if blob_storage is not None:
+                try:
+                    model_path = blob_storage.download_blob_if_needed(
+                        current_settings.AZURE_MODEL_BLOB,
+                        current_settings.LOCAL_MODEL_PATH,
+                    )
+                    inference_input_path = blob_storage.download_blob_if_needed(
+                        current_settings.AZURE_INFERENCE_INPUT_BLOB,
+                        current_settings.LOCAL_INFERENCE_INPUT_PATH,
+                    )
+                except Exception as exc:
+                    model_artifacts_ready = Path(model_path).exists() and Path(inference_input_path).exists()
+                    logger.error("Model artifacts unavailable from blob storage: %s", exc)
+
+                try:
+                    historical_parquet_path = blob_storage.download_blob_if_needed(
+                        current_settings.AZURE_HISTORICAL_PRICE_PARQUET_BLOB,
+                        current_settings.LOCAL_HISTORICAL_PRICE_PARQUET_PATH,
+                    )
+                except Exception as exc:
+                    logger.error("Historical artifact download failed (will fallback to CSV if possible): %s", exc)
         else:
             logger.info("USE_AZURE_BLOB=false, using local artifacts directly.")
             model_artifacts_ready = Path(model_path).exists() and Path(inference_input_path).exists()
@@ -172,7 +187,8 @@ async def lifespan(app):
 
         app.state.model_loaded = bool(pred_status.get("available") and pred_status.get("predicted"))
         app.state.dataset_loaded = bool(history_df is not None and not history_df.empty)
-        app.state.storage_ready = True
+        app.state.storage_ready = storage_ready
+        app.state.storage_error = storage_error
 
     except Exception as exc:
         logger.error("Startup failed: %s", exc)

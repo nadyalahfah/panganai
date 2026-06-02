@@ -37,10 +37,14 @@ def load_dataset(dataset_path: str):
 
 
 def get_komoditas(df_semua):
+    if df_semua is None or df_semua.empty or "komoditas" not in df_semua.columns:
+        return []
     return sorted(df_semua["komoditas"].dropna().astype(str).unique().tolist())
 
 
 def get_provinsi(df_semua):
+    if df_semua is None or df_semua.empty or "provinsi" not in df_semua.columns:
+        return []
     return sorted(df_semua["provinsi"].dropna().astype(str).unique().tolist())
 
 
@@ -150,6 +154,14 @@ def get_harga_historis_indexed(app_state, komoditas: str, provinsi: str):
 
 
 def get_harga_historis(df_semua, komoditas, provinsi):
+    if (
+        df_semua is None
+        or df_semua.empty
+        or "komoditas" not in df_semua.columns
+        or "provinsi" not in df_semua.columns
+    ):
+        return []
+
     if "jenis_harga" in df_semua.columns:
         df_semua = df_semua[df_semua["jenis_harga"] == "pasar_tradisional"]
 

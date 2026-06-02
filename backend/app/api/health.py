@@ -22,9 +22,11 @@ def health(request: Request):
     return {
         "status": "ok",
         "storage_ready": bool(getattr(request.app.state, "storage_ready", False)),
+        "storage_error": getattr(request.app.state, "storage_error", None),
         "dataset_loaded": bool(getattr(request.app.state, "dataset_loaded", False)),
         "model_loaded": model_loaded,
         "feature_loaded": feature_loaded,
+        "prediction_engine": getattr(request.app.state, "prediction_engine", None),
     }
 
 
