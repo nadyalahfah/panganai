@@ -1,0 +1,205 @@
+No.,Kode Provinsi,Nama Provinsi,Tahun,%AKE
+1,11,Aceh,2018,100.2
+2,12,Sumatera Utara,2018,104.1
+3,13,Sumatera Barat,2018,103.3
+4,14,Riau,2018,99.2
+5,15,Jambi,2018,100.4
+6,16,Sumatera Selatan,2018,101.7
+7,17,Bengkulu,2018,103.1
+8,18,Lampung,2018,86.7
+9,19,Kepulauan Bangka Belitung,2018,102.3
+10,21,Kepulauan Riau,2018,100.7
+11,31,DKI Jakarta,2018,106.2
+12,32,Jawa Barat,2018,105.6
+13,33,Jawa Tengah,2018,100.4
+14,34,DI Yogyakarta,2018,106.1
+15,35,Jawa Timur,2018,101.6
+16,36,Banten,2018,107.8
+17,51,Bali,2018,108.8
+18,52,Nusa Tenggara Barat,2018,111.0
+19,53,Nusa Tenggara Timur,2018,93.7
+20,61,Kalimantan Barat,2018,91.7
+21,62,Kalimantan Tengah,2018,104.0
+22,63,Kalimantan Selatan,2018,109.1
+23,64,Kalimantan Timur,2018,95.2
+24,65,Kalimantan Utara,2018,94.0
+25,71,Sulawesi Utara,2018,105.0
+26,72,Sulawesi Tengah,2018,99.3
+27,73,Sulawesi Selatan,2018,104.2
+28,74,Sulawesi Tenggara,2018,101.2
+29,75,Gorontalo,2018,98.5
+30,76,Sulawesi Barat,2018,97.5
+31,81,Maluku,2018,88.9
+32,82,Maluku Utara,2018,98.3
+33,91,Papua Barat,2018,96.9
+34,94,Papua,2018,87.7
+35,11,Aceh,2019,98.1
+36,12,Sumatera Utara,2019,103.8
+37,13,Sumatera Barat,2019,101.5
+38,14,Riau,2019,98.6
+39,15,Jambi,2019,101.5
+40,16,Sumatera Selatan,2019,98.1
+41,17,Bengkulu,2019,101.1
+42,18,Lampung,2019,99.5
+43,19,Kepulauan Bangka Belitung,2019,97.8
+44,21,Kepulauan Riau,2019,102.3
+45,31,DKI Jakarta,2019,104.4
+46,32,Jawa Barat,2019,104.7
+47,33,Jawa Tengah,2019,97.5
+48,34,DI Yogyakarta,2019,104.9
+49,35,Jawa Timur,2019,99.5
+50,36,Banten,2019,107.1
+51,51,Bali,2019,107.6
+52,52,Nusa Tenggara Barat,2019,117.5
+53,53,Nusa Tenggara Timur,2019,91.8
+54,61,Kalimantan Barat,2019,91.1
+55,62,Kalimantan Tengah,2019,102.4
+56,63,Kalimantan Selatan,2019,113.5
+57,64,Kalimantan Timur,2019,96.3
+58,65,Kalimantan Utara,2019,95.6
+59,71,Sulawesi Utara,2019,102.1
+60,72,Sulawesi Tengah,2019,96.1
+61,73,Sulawesi Selatan,2019,99.5
+62,74,Sulawesi Tenggara,2019,102.1
+63,75,Gorontalo,2019,100.3
+64,76,Sulawesi Barat,2019,101.2
+65,81,Maluku,2019,89.1
+66,82,Maluku Utara,2019,84.0
+67,91,Papua Barat,2019,88.8
+68,94,Papua,2019,95.9
+69,11,Aceh,2020,99.6
+70,12,Sumatera Utara,2020,101.0
+71,13,Sumatera Barat,2020,100.5
+72,14,Riau,2020,98.9
+73,15,Jambi,2020,101.9
+74,16,Sumatera Selatan,2020,99.1
+75,17,Bengkulu,2020,101.3
+76,18,Lampung,2020,100.3
+77,19,Kepulauan Bangka Belitung,2020,96.4
+78,21,Kepulauan Riau,2020,101.0
+79,31,DKI Jakarta,2020,104.7
+80,32,Jawa Barat,2020,103.5
+81,33,Jawa Tengah,2020,97.8
+82,34,DI Yogyakarta,2020,102.2
+83,35,Jawa Timur,2020,99.1
+84,36,Banten,2020,107.2
+85,51,Bali,2020,109.2
+86,52,Nusa Tenggara Barat,2020,116.3
+87,53,Nusa Tenggara Timur,2020,92.8
+88,61,Kalimantan Barat,2020,90.9
+89,62,Kalimantan Tengah,2020,102.0
+90,63,Kalimantan Selatan,2020,108.2
+91,64,Kalimantan Timur,2020,96.2
+92,65,Kalimantan Utara,2020,92.6
+93,71,Sulawesi Utara,2020,102.5
+94,72,Sulawesi Tengah,2020,97.1
+95,73,Sulawesi Selatan,2020,96.6
+96,74,Sulawesi Tenggara,2020,99.7
+97,75,Gorontalo,2020,97.4
+98,76,Sulawesi Barat,2020,98.8
+99,81,Maluku,2020,84.4
+100,82,Maluku Utara,2020,84.4
+101,91,Papua Barat,2020,91.1
+102,94,Papua,2020,90.6
+103,11,Aceh,2021,103.4
+104,12,Sumatera Utara,2021,102.3
+105,13,Sumatera Barat,2021,101.7
+106,14,Riau,2021,99.0
+107,15,Jambi,2021,102.3
+108,16,Sumatera Selatan,2021,101.9
+109,17,Bengkulu,2021,106.3
+110,18,Lampung,2021,101.2
+111,19,Kepulauan Bangka Belitung,2021,105.8
+112,21,Kepulauan Riau,2021,100.6
+113,31,DKI Jakarta,2021,105.9
+114,32,Jawa Barat,2021,103.0
+115,33,Jawa Tengah,2021,98.7
+116,34,DI Yogyakarta,2021,102.1
+117,35,Jawa Timur,2021,100.6
+118,36,Banten,2021,107.6
+119,51,Bali,2021,104.6
+120,52,Nusa Tenggara Barat,2021,121.1
+121,53,Nusa Tenggara Timur,2021,96.2
+122,61,Kalimantan Barat,2021,92.4
+123,62,Kalimantan Tengah,2021,102.1
+124,63,Kalimantan Selatan,2021,109.3
+125,64,Kalimantan Timur,2021,94.4
+126,65,Kalimantan Utara,2021,96.4
+127,71,Sulawesi Utara,2021,100.4
+128,72,Sulawesi Tengah,2021,95.6
+129,73,Sulawesi Selatan,2021,97.4
+130,74,Sulawesi Tenggara,2021,99.8
+131,75,Gorontalo,2021,95.7
+132,76,Sulawesi Barat,2021,99.9
+133,81,Maluku,2021,89.3
+134,82,Maluku Utara,2021,88.7
+135,91,Papua Barat,2021,89.5
+136,94,Papua,2021,91.0
+137,11,Aceh,2022,98.3
+138,12,Sumatera Utara,2022,101.1
+139,13,Sumatera Barat,2022,100.4
+140,14,Riau,2022,96.3
+141,15,Jambi,2022,98.5
+142,16,Sumatera Selatan,2022,103.9
+143,17,Bengkulu,2022,97.0
+144,18,Lampung,2022,95.4
+145,19,Kepulauan Bangka Belitung,2022,98.4
+146,21,Kepulauan Riau,2022,96.2
+147,31,DKI Jakarta,2022,102.2
+148,32,Jawa Barat,2022,100.7
+149,33,Jawa Tengah,2022,95.4
+150,34,DI Yogyakarta,2022,96.4
+151,35,Jawa Timur,2022,97.2
+152,36,Banten,2022,108.1
+153,51,Bali,2022,102.2
+154,52,Nusa Tenggara Barat,2022,117.2
+155,53,Nusa Tenggara Timur,2022,94.0
+156,61,Kalimantan Barat,2022,90.1
+157,62,Kalimantan Tengah,2022,100.8
+158,63,Kalimantan Selatan,2022,104.2
+159,64,Kalimantan Timur,2022,94.0
+160,65,Kalimantan Utara,2022,88.5
+161,71,Sulawesi Utara,2022,102.6
+162,72,Sulawesi Tengah,2022,95.3
+163,73,Sulawesi Selatan,2022,98.9
+164,74,Sulawesi Tenggara,2022,92.8
+165,75,Gorontalo,2022,93.2
+166,76,Sulawesi Barat,2022,99.2
+167,81,Maluku,2022,87.5
+168,82,Maluku Utara,2022,87.8
+169,91,Papua Barat,2022,89.5
+170,94,Papua,2022,90.6
+171,11,Aceh,2023,97.8
+172,12,Sumatera Utara,2023,99.7
+173,13,Sumatera Barat,2023,99.3
+174,14,Riau,2023,97.5
+175,15,Jambi,2023,97.3
+176,16,Sumatera Selatan,2023,104.3
+177,17,Bengkulu,2023,98.1
+178,18,Lampung,2023,99.8
+179,19,Kepulauan Bangka Belitung,2023,98.0
+180,21,Kepulauan Riau,2023,97.5
+181,31,DKI Jakarta,2023,102.8
+182,32,Jawa Barat,2023,100.5
+183,33,Jawa Tengah,2023,96.4
+184,34,DI Yogyakarta,2023,97.8
+185,35,Jawa Timur,2023,98.5
+186,36,Banten,2023,105.1
+187,51,Bali,2023,107.8
+188,52,Nusa Tenggara Barat,2023,118.3
+189,53,Nusa Tenggara Timur,2023,92.3
+190,61,Kalimantan Barat,2023,91.4
+191,62,Kalimantan Tengah,2023,102.0
+192,63,Kalimantan Selatan,2023,103.2
+193,64,Kalimantan Timur,2023,95.7
+194,65,Kalimantan Utara,2023,90.1
+195,71,Sulawesi Utara,2023,100.2
+196,72,Sulawesi Tengah,2023,97.9
+197,73,Sulawesi Selatan,2023,100.5
+198,74,Sulawesi Tenggara,2023,96.2
+199,75,Gorontalo,2023,95.1
+200,76,Sulawesi Barat,2023,100.0
+201,81,Maluku,2023,86.6
+202,82,Maluku Utara,2023,86.8
+203,91,Papua Barat,2023,88.6
+204,94,Papua,2023,90.6

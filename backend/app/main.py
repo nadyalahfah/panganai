@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import alert, commodity, dashboard, health, historical, prediction, statistics, insight
+from app.api import alert, commodity, dashboard, health, historical, prediction, statistics, insight, optimizer
 from app.core.lifespan import lifespan
 
 app = FastAPI(
@@ -25,3 +25,4 @@ app.include_router(prediction.router, prefix="/api")
 app.include_router(alert.router, prefix="/api")
 app.include_router(statistics.router, prefix="/api")
 app.include_router(insight.router, prefix="/api/ai")
+app.include_router(optimizer.router, prefix="/api/optimizer")

@@ -1,0 +1,10 @@
+{
+  "kpi": {
+    "total_routes": 0,
+    "supported_commodities": 0,
+    "provinces_covered": 0,
+    "avg_route_score": 0
+  },
+  "chart_data": [],
+  "items": []
+}

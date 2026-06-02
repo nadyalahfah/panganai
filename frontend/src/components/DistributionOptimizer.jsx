@@ -53,7 +53,7 @@ const PROV_COORDS = {
   'Papua Barat': [560, 140], 'Papua': [640, 150]
 };
 
-export default function DistributionOptimizer({ komoditasList, selKomoditas, onKomoditasChange, semuaProv }) {
+export default function DistributionOptimizer({ komoditasList, selKomoditas, onKomoditasChange, routesData, alertsData }) {
   const [activeRec, setActiveRec] = useState(0);
   const normalizedKomoditas = useMemo(
     () =>
@@ -69,64 +69,78 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
     [komoditasList],
   );
 
-  const recommendations = useMemo(() => {
-    if (!semuaProv || semuaProv.length === 0) return [];
+  const { isAlertMode, recommendations, alerts } = useMemo(() => {
+    const match = (c) => {
+      const cName = c || '';
+      return !selKomoditas || selKomoditas === 'Semua' || cName.toLowerCase() === selKomoditas.toLowerCase() || cName.toLowerCase().includes(selKomoditas.toLowerCase());
+    };
     
-    // Valid data with predictions
-    const validData = semuaProv.filter(p => p.prediksi_7h && p.harga_sekarang && PROV_COORDS[p.provinsi]);
+    const filteredRoutes = (routesData || []).filter(r => match(r.commodity || r.komoditas));
+    const filteredAlerts = (alertsData || []).filter(a => match(a.commodity || a.komoditas));
     
-    // Sort by price: lowest is surplus, highest is deficit
-    const sortedByPrice = [...validData].sort((a, b) => a.prediksi_7h - b.prediksi_7h);
+    const alertMode = filteredRoutes.length === 0 && filteredAlerts.length > 0;
     
-    const surplusRegions = sortedByPrice.slice(0, 5); // Top 5 cheapest
-    const deficitRegions = [...sortedByPrice].reverse().slice(0, 5); // Top 5 most expensive
-    
-    const recs = [];
-    // Generate 3 deterministic recommendations
-    for (let i = 0; i < Math.min(3, surplusRegions.length, deficitRegions.length); i++) {
-      const source = surplusRegions[i];
-      const dest = deficitRegions[i];
+    const recs = filteredRoutes.map((r, i) => {
+      let priority = 'Medium';
+      let color = '#F97316';
+      if (r.route_score >= 80) { priority = 'High'; color = '#EF4444'; }
+      else if (r.route_score < 60) { priority = 'Low'; color = '#3B82F6'; }
       
-      const gap = dest.prediksi_7h - source.prediksi_7h;
-      let priority = 'Low';
-      let color = '#3B82F6';
-      if (gap > 5000) { priority = 'High'; color = '#EF4444'; }
-      else if (gap > 2000) { priority = 'Medium'; color = '#F97316'; }
-      
-      recs.push({
+      return {
         id: i,
-        source: source,
-        dest: dest,
-        surplus: '+' + (Math.floor((source.harga_sekarang % 100) / 2) + 120) + ' Ton',
-        deficit: '-' + (Math.floor((dest.harga_sekarang % 100) / 2) + 95) + ' Ton',
+        source: { provinsi: r.source_province || r.provinsi_asal || r.asal || '', prediksi_7h: r.forecast_price || 0 },
+        dest: { provinsi: r.destination_province || r.provinsi_tujuan || r.tujuan || '', prediksi_7h: r.forecast_price || 0 },
+        surplus: '+' + Math.round(r.surplus_ton || 0).toLocaleString('id-ID') + ' Ton',
+        deficit: '-' + Math.round(r.deficit_ton || 0).toLocaleString('id-ID') + ' Ton',
         priority: priority,
         priorityColor: color,
-        desc: `Redirect supply from ${source.provinsi} to ${dest.provinsi} to reduce projected shortage and stabilize prices.`
-      });
-    }
-    return recs;
-  }, [semuaProv]);
+        desc: r.reason || `Optimized route from ${r.source_province} to ${r.destination_province} based on backend Need Score.`
+      };
+    });
 
-  const activeData = recommendations[activeRec];
+    const alts = filteredAlerts.map((a, i) => {
+      let color = '#F97316';
+      if (a.risk_level === 'High Risk Alert') color = '#EF4444';
+      
+      return {
+        id: i,
+        provinsi: a.province || '',
+        risk_level: a.risk_level,
+        color: color,
+        forecast_change_pct: a.forecast_change_pct,
+        current_price: a.current_price,
+        forecast_price: a.forecast_price,
+        desc: a.reason || `Risk alert due to ${a.forecast_change_pct}% forecast spike.`
+      };
+    });
+
+    return { isAlertMode: alertMode, recommendations: recs, alerts: alts };
+  }, [routesData, alertsData, selKomoditas]);
+
+  const activeData = isAlertMode ? alerts[activeRec] : recommendations[activeRec];
 
   return (
     <div className="distrib-optimizer-panel" style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, minHeight: 400 }}>
       {/* Left: Map */}
       <div style={{ width: '100%', background: 'var(--gray-50)', borderRadius: 12, position: 'relative', overflow: 'hidden', border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
-          <div style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 8 }}>Distribution Optimizer</div>
-          <select 
-            className="filter-select"
-            value={selKomoditas}
-            onChange={(e) => onKomoditasChange(e.target.value)}
-            style={{ minWidth: 220, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
-          >
-            {normalizedKomoditas.map((k) => (
-              <option key={k.key} value={k.value}>
-                {k.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 8 }}>
+            {isAlertMode ? 'Forecast Risk Monitoring Engine' : 'Physical Redistribution Engine'}
+          </div>
+          {komoditasList && komoditasList.length > 0 && (
+            <select 
+              className="filter-select"
+              value={selKomoditas}
+              onChange={(e) => onKomoditasChange(e.target.value)}
+              style={{ minWidth: 220, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+            >
+              {normalizedKomoditas.map((k) => (
+                <option key={k.key} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <svg viewBox="0 0 1050 380" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', minHeight: 380 }}>
@@ -147,8 +161,8 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
               />
             ))}
             
-            {/* Connection Lines */}
-            {activeData && (
+            {/* Connection Lines (Physical Routes) */}
+            {!isAlertMode && activeData && PROV_COORDS[activeData.source.provinsi] && PROV_COORDS[activeData.dest.provinsi] && (
               <g>
                 <path 
                   d={`M${PROV_COORDS[activeData.source.provinsi][0]},${PROV_COORDS[activeData.source.provinsi][1]} 
@@ -186,6 +200,27 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
                 />
               </g>
             )}
+
+            {/* Warning Markers (Market Alerts) */}
+            {isAlertMode && activeData && PROV_COORDS[activeData.provinsi] && (
+              <g>
+                <circle 
+                  cx={PROV_COORDS[activeData.provinsi][0]} 
+                  cy={PROV_COORDS[activeData.provinsi][1]} 
+                  r="6" fill={activeData.color} stroke="white" strokeWidth="2" 
+                />
+                <circle 
+                  cx={PROV_COORDS[activeData.provinsi][0]} 
+                  cy={PROV_COORDS[activeData.provinsi][1]} 
+                  r="16" fill={activeData.color} opacity="0.3" className="pulse-anim"
+                />
+                <circle 
+                  cx={PROV_COORDS[activeData.provinsi][0]} 
+                  cy={PROV_COORDS[activeData.provinsi][1]} 
+                  r="24" fill={activeData.color} opacity="0.1" className="pulse-anim"
+                />
+              </g>
+            )}
           </g>
         </svg>
 
@@ -197,11 +232,13 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
         `}</style>
       </div>
 
-      {/* Right: Recommendations */}
+      {/* Right: Recommendations / Alerts */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 'bold' }}>Recommendations</div>
+        <div style={{ fontSize: 16, fontWeight: 'bold' }}>
+          {isAlertMode ? 'Market Risk Alerts' : 'Recommendations'}
+        </div>
         
-        {recommendations.map((rec, i) => (
+        {!isAlertMode && recommendations.map((rec, i) => (
           <div 
             key={rec.id} 
             className={`rec-card ${activeRec === i ? 'active' : ''}`}
@@ -243,9 +280,54 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
           </div>
         ))}
         
-        {recommendations.length === 0 && (
+        {isAlertMode && alerts.map((alt, i) => (
+          <div 
+            key={alt.id} 
+            className={`rec-card ${activeRec === i ? 'active' : ''}`}
+            onClick={() => setActiveRec(i)}
+            style={{ 
+              padding: 16, background: 'white', borderRadius: 8, 
+              border: `1px solid ${activeRec === i ? alt.color : '#E5E7EB'}`,
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: activeRec === i ? `0 4px 6px -1px ${alt.color}33` : '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 'bold' }}>
+                <AlertCircle size={16} color={alt.color} />
+                <div style={{ color: '#0F172A' }}>{alt.provinsi}</div>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: `${alt.color}15`, color: alt.color }}>
+                {alt.risk_level}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+              <div style={{ background: '#F8FAFC', padding: 8, borderRadius: 6 }}>
+                <div style={{ fontSize: 11, color: '#64748B' }}>Current Price</div>
+                <div style={{ fontSize: 14, fontWeight: 'bold', color: '#0F172A' }}>{formatRupiahShort(alt.current_price)}</div>
+              </div>
+              <div style={{ background: '#F8FAFC', padding: 8, borderRadius: 6 }}>
+                <div style={{ fontSize: 11, color: '#64748B' }}>Forecast (+7D)</div>
+                <div style={{ fontSize: 14, fontWeight: 'bold', color: alt.color }}>+{alt.forecast_change_pct.toFixed(1)}%</div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+              {alt.desc}
+            </div>
+          </div>
+        ))}
+
+        {!isAlertMode && recommendations.length === 0 && (
           <div style={{ padding: 20, textAlign: 'center', color: '#9CA3AF', background: 'white', borderRadius: 8 }}>
-            Belum ada rekomendasi.
+            Belum ada rute distribusi fisik.
+          </div>
+        )}
+
+        {isAlertMode && alerts.length === 0 && (
+          <div style={{ padding: 20, textAlign: 'center', color: '#9CA3AF', background: 'white', borderRadius: 8 }}>
+            Belum ada risk alert.
           </div>
         )}
       </div>

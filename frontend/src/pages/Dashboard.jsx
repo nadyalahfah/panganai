@@ -42,6 +42,8 @@ export default function Dashboard({ onAlertsLoaded }) {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState(null);
   const [showGuideBanner, setShowGuideBanner] = useState(true);
+  const [optimizerData, setOptimizerData] = useState([]);
+  const [optimizerAlerts, setOptimizerAlerts] = useState([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,6 +77,16 @@ export default function Dashboard({ onAlertsLoaded }) {
         setSelProvinsi(defaultProv);
         setDatasetMaxDate(FIXED_REFERENCE_DATE);
         setLastUpdated(new Date());
+
+        // Fetch optimizer routes
+        try {
+          const optRes = await fetch("http://localhost:8000/api/optimizer/routes");
+          const optData = await optRes.json();
+          setOptimizerData(optData.items || []);
+          setOptimizerAlerts(optData.market_alerts || []);
+        } catch (e) {
+          console.error("Failed to fetch optimizer routes", e);
+        }
       } catch (err) {
         if (err.name !== "AbortError") setError(err.message);
       } finally {
@@ -526,9 +538,9 @@ export default function Dashboard({ onAlertsLoaded }) {
       )}
 
       <DistributionOptimizer
-        selectedKomoditas={selectedKomoditasName}
-        horizonDays={Number(predPeriod)}
-        semuaProv={semuaProv}
+        selKomoditas={selectedKomoditasName}
+        routesData={optimizerData}
+        alertsData={optimizerAlerts}
       />
     </div>
   );

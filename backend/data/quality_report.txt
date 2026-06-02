@@ -1,0 +1,33 @@
+=== DATA QUALITY REPORT ===
+Total Rows: 2134
+Unique Provinces: 38
+Unique Commodities: 9
+
+=== OPTIMIZER MODE DISTRIBUTION ===
+supply_only: 1119
+demand_only: 811
+full: 204
+
+=== DATA QUALITY DISTRIBUTION ===
+partial_supply: 1119
+partial_demand: 811
+high: 204
+
+=== COMMODITY COVERAGE ===
+komoditas                   optimizer_mode
+Bawang Merah Ukuran Sedang  supply_only       213
+Beras Medium I              demand_only       135
+                            supply_only        80
+                            full               68
+Beras Medium II             demand_only       135
+                            supply_only        80
+                            full               68
+Beras Premium               demand_only       135
+                            supply_only        80
+                            full               68
+Cabai Merah Besar           supply_only       203
+Cabai Merah Keriting        supply_only       175
+Cabai Rawit                 supply_only       214
+Minyak Goreng Curah         demand_only       203
+Telur Ayam Ras              demand_only       203
+                            supply_only        74

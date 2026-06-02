@@ -4,8 +4,19 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from catboost import CatBoostRegressor
-from catboost import Pool
+# Lazy-import catboost so startup can proceed in CSV-fallback mode
+# even if the CatBoost native DLL fails to load (e.g. low paging file).
+try:
+    from catboost import CatBoostRegressor, Pool
+    _CATBOOST_AVAILABLE = True
+except (ImportError, OSError) as _catboost_err:
+    CatBoostRegressor = None  # type: ignore[assignment,misc]
+    Pool = None               # type: ignore[assignment,misc]
+    _CATBOOST_AVAILABLE = False
+    import logging as _logging
+    _logging.getLogger("panganai").error(
+        "CatBoost DLL failed to load — running in CSV-fallback mode: %s", _catboost_err
+    )
 
 from app.utils.converters import safe_float
 from app.core.config import settings
@@ -125,6 +136,10 @@ class CatBoostPredictionService:
 
     def load(self) -> None:
         self.status.update({"available": False, "loaded": False, "predicted": False, "error": None})
+        if not _CATBOOST_AVAILABLE:
+            self.status["error"] = "CatBoost DLL unavailable — running in CSV-fallback mode."
+            logger.error("CatBoost unavailable at load(): %s", self.status["error"])
+            return
         try:
             if not self.model_path.exists():
                 raise FileNotFoundError(f"Model file not found: {self.model_path}")
@@ -177,6 +192,9 @@ class CatBoostPredictionService:
             logger.exception("Failed loading CatBoost prediction service: %s", exc)
 
     def predict_all(self) -> None:
+        if not _CATBOOST_AVAILABLE:
+            self.status["error"] = "CatBoost DLL unavailable — predict_all skipped."
+            return
         if not self.status.get("loaded") or self.input_df is None or self.model is None:
             self.status["error"] = self.status.get("error") or "Service not loaded"
             return
