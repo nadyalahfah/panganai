@@ -258,9 +258,6 @@ export default function IndonesiaMap({
         color,
       };
     });
-
-    console.log("Kalbar data:", mapData["KALIMANTAN BARAT"]);
-    console.log("All backend map keys:", Object.keys(mapData));
     return mapData;
   }, [data]);
 
@@ -373,11 +370,6 @@ export default function IndonesiaMap({
       >
         <Geographies geography={geoUrl}>
           {({ geographies }) => {
-            console.log(
-              "All province raw names:",
-              geographies.map((geo) => getGeoProvName(geo.properties)),
-            );
-
             return geographies.map((geo) => {
               const rawGeoName = getGeoProvName(geo.properties);
               const provName = toBackendProv(rawGeoName);

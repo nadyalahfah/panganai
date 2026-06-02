@@ -1,4 +1,14 @@
-const BASE = import.meta.env.VITE_API_URL || "/api";
+function normalizeApiBase(value) {
+  const base = (value || "/api").replace(/\/+$/, "");
+  return base.endsWith("/api") ? base : `${base}/api`;
+}
+
+export const API_BASE = normalizeApiBase(import.meta.env.VITE_API_URL);
+
+export function buildApiUrl(path) {
+  return `${API_BASE}/${path.replace(/^\/+/, "")}`;
+}
+
 const responseCache = new Map();
 
 function getCached(key, ttlMs) {
@@ -26,13 +36,13 @@ function normalizeParam(value) {
 }
 
 export async function fetchKomoditas() {
-  const res = await fetch(`${BASE}/komoditas`);
+  const res = await fetch(buildApiUrl("komoditas"));
   if (!res.ok) throw new Error("Gagal memuat daftar komoditas");
   return res.json();
 }
 
 export async function fetchProvinsi() {
-  const res = await fetch(`${BASE}/provinsi`);
+  const res = await fetch(buildApiUrl("provinsi"));
   if (!res.ok) throw new Error("Gagal memuat daftar provinsi");
   return res.json();
 }
@@ -42,7 +52,7 @@ export async function fetchHargaHistoris(komoditas, provinsi) {
     komoditas: normalizeParam(komoditas),
     provinsi: normalizeParam(provinsi),
   });
-  const res = await fetch(`${BASE}/harga-historis?${params}`);
+  const res = await fetch(buildApiUrl(`harga-historis?${params}`));
   if (!res.ok) throw new Error("Gagal memuat data harga historis");
   return res.json();
 }
@@ -52,26 +62,26 @@ export async function fetchPrediksi(komoditas, provinsi) {
     komoditas: normalizeParam(komoditas),
     provinsi: normalizeParam(provinsi),
   });
-  const res = await fetch(`${BASE}/prediksi?${params}`);
+  const res = await fetch(buildApiUrl(`prediksi?${params}`));
   if (!res.ok) throw new Error("Gagal memuat data prediksi");
   return res.json();
 }
 
 export async function fetchPrediksiSemua(komoditas) {
   const params = new URLSearchParams({ komoditas: normalizeParam(komoditas) });
-  const res = await fetch(`${BASE}/prediksi-semua?${params}`);
+  const res = await fetch(buildApiUrl(`prediksi-semua?${params}`));
   if (!res.ok) throw new Error("Gagal memuat prediksi semua provinsi");
   return res.json();
 }
 
 export async function fetchAlert() {
-  const res = await fetch(`${BASE}/alert`);
+  const res = await fetch(buildApiUrl("alert"));
   if (!res.ok) throw new Error("Gagal memuat data alert");
   return res.json();
 }
 
 export async function fetchStatistikNasional() {
-  const res = await fetch(`${BASE}/statistik-nasional`);
+  const res = await fetch(buildApiUrl("statistik-nasional"));
   if (!res.ok) throw new Error("Gagal memuat statistik nasional");
   return res.json();
 }
@@ -81,7 +91,7 @@ export async function fetchDashboardInitial(signal) {
   const cached = getCached(cacheKey, 5 * 60 * 1000);
   if (cached) return cached;
 
-  const res = await fetch(`${BASE}/dashboard/initial`, { signal });
+  const res = await fetch(buildApiUrl("dashboard/initial"), { signal });
   if (!res.ok) throw new Error("Gagal memuat data initial dashboard");
   const data = await res.json();
   return setCached(cacheKey, data);
@@ -98,7 +108,7 @@ export async function fetchDashboardDetail(komoditas, provinsi, signal) {
     komoditas: k,
     provinsi: p,
   });
-  const res = await fetch(`${BASE}/dashboard/detail?${params}`, { signal });
+  const res = await fetch(buildApiUrl(`dashboard/detail?${params}`), { signal });
   if (!res.ok) throw new Error("Gagal memuat detail dashboard");
   const data = await res.json();
   return setCached(cacheKey, data);
