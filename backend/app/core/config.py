@@ -66,5 +66,14 @@ class Settings:
     AI_INSIGHT_RATE_GUARD_SECONDS = int(os.getenv("AI_INSIGHT_RATE_GUARD_SECONDS", "30"))
     ALERT_MIN_CHANGE_PCT = float(os.getenv("ALERT_MIN_CHANGE_PCT", "5"))
 
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ALLOWED_ORIGINS",
+            "http://localhost:5173,http://localhost:3000,https://panganai.vercel.app",
+        ).split(",")
+        if origin.strip()
+    ]
+
 
 settings = Settings()

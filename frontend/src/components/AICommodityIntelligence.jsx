@@ -24,6 +24,32 @@ function classifyRisk(changePct) {
   return "aman";
 }
 
+function formatRiskLabel(risk) {
+  return {
+    kritis: "Kritis",
+    berisiko_tinggi: "Berisiko Tinggi",
+    waspada: "Waspada",
+    aman: "Aman",
+  }[risk] || risk;
+}
+
+function formatDirection(changePct) {
+  if (changePct > 0) return "naik";
+  if (changePct < 0) return "turun";
+  return "stabil";
+}
+
+function formatProvinceList(rows, limit = 5) {
+  if (!rows.length) return "-";
+  const shown = rows.slice(0, limit).map((row) => {
+    const name = row.provinsi || row.name || "-";
+    const direction = formatDirection(row._pct);
+    return `${name} (${formatRiskLabel(row._risk)}, ${direction} ${Math.abs(row._pct).toFixed(2)}%)`;
+  });
+  const remaining = rows.length - shown.length;
+  return remaining > 0 ? `${shown.join("; ")}; +${remaining} provinsi lain` : shown.join("; ");
+}
+
 const RANK = {
   kritis: 4,
   berisiko_tinggi: 3,
@@ -87,6 +113,12 @@ export default function AICommodityIntelligence({
 
   useEffect(() => {
     if (!selectedKomoditas) return;
+    if (geoMode !== "forecast" && !(semuaProv || []).length) {
+      setBriefing(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
 
     const key = JSON.stringify({
       komoditas: selectedKomoditas,
@@ -112,19 +144,43 @@ export default function AICommodityIntelligence({
       setError(null);
 
       try {
-        const relevantAlerts = (alerts || []).slice();
-        const enriched = relevantAlerts
-          .map((a) => {
-            const pct =
+        const mapRows = (semuaProv || []).map((row) => {
+          const pct =
+            horizonDays === 30
+              ? toNum(row.ubah_30_pct ?? row.kenaikan_pct)
+              : toNum(row.ubah_7_pct ?? row.kenaikan_pct);
+          return {
+            ...row,
+            provinsi: row.provinsi || row.name,
+            harga_sekarang: row.harga_sekarang ?? row.harga,
+            prediksi:
               horizonDays === 30
-                ? toNum(a.ubah_30_pct ?? a.kenaikan_pct)
-                : toNum(a.kenaikan_pct ?? a.ubah_7_pct);
-            return {
-              ...a,
-              _pct: pct,
-              _risk: classifyRisk(pct),
-            };
-          })
+                ? row.prediksi_30h ?? row.prediksi
+                : row.prediksi_7h ?? row.prediksi,
+            _pct: pct,
+            _risk: classifyRisk(pct),
+          };
+        });
+
+        const alertRows = (alerts || []).map((a) => {
+          const pct =
+            horizonDays === 30
+              ? toNum(a.ubah_30_pct ?? a.kenaikan_pct)
+              : toNum(a.kenaikan_pct ?? a.ubah_7_pct);
+          return {
+            ...a,
+            _pct: pct,
+            _risk: classifyRisk(pct),
+          };
+        });
+
+        const sourceRows = geoMode === "forecast" ? alertRows : mapRows;
+        const enriched = sourceRows
+          .map((a) => ({
+            ...a,
+            _pct: toNum(a._pct),
+            _risk: a._risk || classifyRisk(a._pct),
+          }))
           .sort((a, b) => {
             const rankDiff = RANK[b._risk] - RANK[a._risk];
             if (rankDiff !== 0) return rankDiff;
@@ -151,16 +207,26 @@ export default function AICommodityIntelligence({
           }
 
           const contextLines = [
-            "Konteks tampilan saat ini: PETA RISIKO provinsi.",
+            "Konteks tampilan saat ini: PETA RISIKO provinsi. Analisis wajib merujuk ke warna/status pada peta, bukan daftar alert global.",
             `Horizon prediksi: ${horizonDays} hari.`,
-            `Prioritas analisis risiko: Kritis > Berisiko Tinggi > Waspada > Aman.`,
-            `Jumlah provinsi Kritis: ${critical.length}, Berisiko Tinggi: ${high.length}, Waspada: ${watch.length}, Aman: ${safe.length}.`,
-            `Kasus utama: ${primary.provinsi || primary.name || "-"} (${primary._risk}, ${primary._pct.toFixed(2)}%).`,
+            "Legenda visual peta: Aman <5%, Waspada 5-10%, Berisiko Tinggi 10-20%, Kritis >20% perubahan absolut.",
+            `Jumlah provinsi sesuai peta: Kritis ${critical.length}, Berisiko Tinggi ${high.length}, Waspada ${watch.length}, Aman ${safe.length}.`,
+            `Provinsi Kritis pada peta: ${formatProvinceList(critical)}.`,
+            `Provinsi Berisiko Tinggi pada peta: ${formatProvinceList(high)}.`,
+            `Provinsi Waspada pada peta: ${formatProvinceList(watch)}.`,
+            `Provinsi Aman dominan pada peta: ${formatProvinceList(safe, 4)}.`,
+            `Kasus utama berdasarkan warna/risiko peta: ${primary.provinsi || primary.name || "-"} (${formatRiskLabel(primary._risk)}, ${formatDirection(primary._pct)} ${Math.abs(primary._pct).toFixed(2)}%).`,
             secondary
-              ? `Kasus kedua: ${secondary.provinsi || secondary.name || "-"} (${secondary._risk}, ${secondary._pct.toFixed(2)}%).`
+              ? `Kasus kedua berdasarkan peta: ${secondary.provinsi || secondary.name || "-"} (${formatRiskLabel(secondary._risk)}, ${formatDirection(secondary._pct)} ${Math.abs(secondary._pct).toFixed(2)}%).`
               : "Tidak ada kasus kedua prioritas tinggi.",
-            "Instruksi output ringkasan: jika ada status waspada/berisiko tinggi/kritis, jelaskan ringkasan dalam 1 paragraf yang menyoroti penyebab utama dan dampak.",
-            "Jika semua aman, nyatakan kondisi aman dan boleh tambahkan catatan anomali ringan jika ada.",
+            "Gaya output PETA RISIKO yang harus dipertahankan:",
+            "summary: satu paragraf eksekutif. Awali dengan arah prediksi komoditas dan horizon, lalu frasa 'Berdasarkan peta risiko,' serta distribusi kategori dan contoh provinsi utama.",
+            "risk: satu paragraf. Fokus pada provinsi prioritas dan volatilitas/tekanan harga; jangan melebar ke narasi nasional yang tidak terlihat di peta.",
+            "recommendation: satu paragraf praktis. Sarankan pemantauan intensif di provinsi Berisiko Tinggi/Kritis, validasi lapangan, dan pengawasan berkala untuk Waspada.",
+            "Gunakan istilah kategori persis: Kritis, Berisiko Tinggi, Waspada, Aman.",
+            "Instruksi output: sebutkan distribusi warna/status peta secara faktual. Jangan menyebut jumlah provinsi yang tidak sama dengan data peta.",
+            "Jangan mengklaim penyebab eksternal spesifik seperti gangguan pasokan/cuaca bila tidak ada di data; gunakan frasa kehati-hatian seperti indikasi tekanan harga.",
+            "Jika ada provinsi turun tetapi masuk risiko tinggi/kritis, jelaskan sebagai volatilitas/penurunan tajam, bukan lonjakan harga.",
             refreshNonce > 0 ? `Permintaan refresh manual ke-${refreshNonce}.` : "",
           ];
 
