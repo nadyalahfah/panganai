@@ -8,7 +8,7 @@ import {
 import { IoClose } from "react-icons/io5";
 import { formatRupiah, formatTanggalFull } from "../api";
 
-const geoUrl = "/indonesia-province.json";
+const geoUrl = "/indonesia-province-simple.json";
 
 export default function IndonesiaMap({
   data,
@@ -25,6 +25,9 @@ export default function IndonesiaMap({
   const tooltipRef = useRef(null);
   const mapViewportRef = useRef(null);
   const mapWrapRef = useRef(null);
+  const activeHoverKeyRef = useRef(null);
+  const pendingTooltipPointRef = useRef(null);
+  const tooltipMoveFrameRef = useRef(null);
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
   const normalizeProvName = (name) => {
@@ -250,6 +253,14 @@ export default function IndonesiaMap({
   }, [data, komoditas, horizon]);
 
   React.useEffect(() => {
+    return () => {
+      if (tooltipMoveFrameRef.current) {
+        window.cancelAnimationFrame(tooltipMoveFrameRef.current);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
     const el = mapViewportRef.current;
     if (!el) return undefined;
 
@@ -332,15 +343,24 @@ export default function IndonesiaMap({
   };
 
   const updateTooltipPos = (clientX, clientY) => {
-    const nextPos = getTooltipPosition(clientX, clientY);
-    const tooltip = tooltipRef.current;
+    pendingTooltipPointRef.current = { clientX, clientY };
+    if (tooltipMoveFrameRef.current) return;
 
-    if (tooltip) {
-      tooltip.style.transform = `translate3d(${nextPos.x}px, ${nextPos.y}px, 0)`;
-      return;
-    }
+    tooltipMoveFrameRef.current = window.requestAnimationFrame(() => {
+      tooltipMoveFrameRef.current = null;
+      const point = pendingTooltipPointRef.current;
+      if (!point) return;
 
-    setTooltipPos(nextPos);
+      const nextPos = getTooltipPosition(point.clientX, point.clientY);
+      const tooltip = tooltipRef.current;
+
+      if (tooltip) {
+        tooltip.style.transform = `translate3d(${nextPos.x}px, ${nextPos.y}px, 0)`;
+        return;
+      }
+
+      setTooltipPos(nextPos);
+    });
   };
 
   const getRegionData = (rawName) => {
@@ -359,9 +379,14 @@ export default function IndonesiaMap({
 
   const handleMouseEnter = (geo, e) => {
     const rawGeoName = getGeoProvName(geo.properties);
-    const { region } = getRegionData(rawGeoName);
+    const { provName, region } = getRegionData(rawGeoName);
 
     if (isMobileMap && pinnedRegion) return;
+    if (activeHoverKeyRef.current === provName) {
+      updateTooltipPos(e.clientX, e.clientY);
+      return;
+    }
+    activeHoverKeyRef.current = provName;
     setTooltipPos(getTooltipPosition(e.clientX, e.clientY));
     setHoverRegion(region);
   };
@@ -371,7 +396,12 @@ export default function IndonesiaMap({
 
     if (!provData) return;
     if (isMobileMap && pinnedRegion) return;
+    if (activeHoverKeyRef.current === provName) {
+      updateTooltipPos(e.clientX, e.clientY);
+      return;
+    }
 
+    activeHoverKeyRef.current = provName;
     setHoverRegion({
       ...provData,
       rawName: provName,
@@ -387,6 +417,7 @@ export default function IndonesiaMap({
 
   const handleMouseLeave = () => {
     if (isMobileMap && pinnedRegion) return;
+    activeHoverKeyRef.current = null;
     setHoverRegion(null);
   };
 
@@ -397,12 +428,14 @@ export default function IndonesiaMap({
       setSelectedProv(null);
       setPinnedRegion(null);
       setHoverRegion(null);
+      activeHoverKeyRef.current = null;
       return;
     }
 
     setSelectedProv(provName);
     setPinnedRegion(region);
     setHoverRegion(null);
+    activeHoverKeyRef.current = null;
     setTooltipPos(getTooltipPosition(e.clientX, e.clientY));
   };
 
@@ -415,6 +448,7 @@ export default function IndonesiaMap({
     setSelectedProv(null);
     setPinnedRegion(null);
     setHoverRegion(null);
+    activeHoverKeyRef.current = null;
   };
 
   let currentDateStr = "Hari ini";
@@ -483,23 +517,8 @@ export default function IndonesiaMap({
     return () => window.cancelAnimationFrame(frame);
   }, [isMobileMap, mapDisplayRegion, tooltipPos.x, tooltipPos.y]);
 
-  return (
-    <div
-      ref={mapViewportRef}
-      style={{
-        position: "relative",
-        width: "100%",
-        minHeight: 320,
-        height: "clamp(320px, 52vw, 520px)",
-        background: "var(--gray-50)",
-        borderRadius: 8,
-        overflowX: isMobileMap ? "auto" : "hidden",
-        overflowY: "hidden",
-        WebkitOverflowScrolling: "touch",
-        border: "1px solid var(--gray-200)",
-      }}
-    >
-      {/* Map */}
+  const renderedMap = useMemo(
+    () => (
       <div
         ref={mapWrapRef}
         style={{
@@ -590,6 +609,37 @@ export default function IndonesiaMap({
           </ComposableMap>
         )}
       </div>
+    ),
+    [
+      isMobileMap,
+      mapCanvasHeight,
+      mapCanvasWidth,
+      mapProjectionScale,
+      mapSize.width,
+      pinnedRegion,
+      provDataMap,
+      selectedProv,
+    ],
+  );
+
+  return (
+    <div
+      ref={mapViewportRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        minHeight: 320,
+        height: "clamp(320px, 52vw, 520px)",
+        background: "var(--gray-50)",
+        borderRadius: 8,
+        overflowX: isMobileMap ? "auto" : "hidden",
+        overflowY: "hidden",
+        WebkitOverflowScrolling: "touch",
+        border: "1px solid var(--gray-200)",
+      }}
+    >
+      {/* Map */}
+      {renderedMap}
 
       {/* Legend */}
       <div
