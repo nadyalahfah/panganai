@@ -1719,7 +1719,6 @@ body {
   .mobile-brand {
     min-width: 0;
     display: flex;
-    flex-direction: column;
     line-height: 1.15;
   }
 
@@ -1868,7 +1867,7 @@ body {
     gap: 8px !important;
   }
 
-  .dashboard-title-line > span {
+  .dashboard-title-line>span {
     align-self: flex-start;
     font-size: 11px !important;
     padding: 4px 9px !important;
@@ -1922,6 +1921,7 @@ body {
   .main-content {
     padding: 14px;
   }
+
   .chart-card {
     padding: 12px;
     margin-top: 18px;
@@ -2017,7 +2017,7 @@ body {
     padding: 14px !important;
   }
 
-  .ews-insight-body > div:nth-child(2) {
+  .ews-insight-body>div:nth-child(2) {
     grid-template-columns: 1fr !important;
   }
 
@@ -2060,13 +2060,4 @@ body {
   .kpi-value {
     font-size: 20px;
   }
-}
-
-/* Added for Market Stabilization Engine V2 */
-.marker-hover {
-  transition: r 0.2s ease, opacity 0.2s ease;
-}
-g:hover .marker-hover {
-  r: 8px;
-  opacity: 1 !important;
 }

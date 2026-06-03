@@ -28,29 +28,39 @@ const NAV_GROUPS = [
   },
   {
     label: "Recommendations",
-    items: [
-      { to: "/distribusi", label: "Supply & Distribution", icon: Truck },
-    ],
+    items: [{ to: "/distribusi", label: "Supply & Distribution", icon: Truck }],
   },
   {
     label: "Data & Reports",
     items: [
-      { to: "/harga-harian", label: "Market Intelligence Center", icon: Table2 },
+      {
+        to: "/harga-harian",
+        label: "Market Intelligence Center",
+        icon: Table2,
+      },
       { to: "/laporan", label: "AI Reports Center", icon: FileText },
     ],
   },
 ];
 
-export default function Sidebar({ collapsed, mobileOpen = false, onCloseMobile, onToggle }) {
+export default function Sidebar({
+  collapsed,
+  mobileOpen = false,
+  onCloseMobile,
+  onToggle,
+}) {
   return (
     <aside
       className={`sidebar${collapsed ? " collapsed" : ""}${mobileOpen ? " mobile-open" : ""}`}
     >
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-text">
-          <h1>PanganAI</h1>
-          <p>Monitoring & Prediksi</p>
+        <div className="sidebar-logo-text flex items-center gap-2">
+          <img src="/logo-panganai.svg" alt="logo-panganai" width={30} />
+          <div>
+            <h1>PanganAI</h1>
+            <p>Monitoring & Prediksi</p>
+          </div>
         </div>
       </div>
 
@@ -92,8 +102,6 @@ export default function Sidebar({ collapsed, mobileOpen = false, onCloseMobile, 
           </div>
         ))}
       </nav>
-
-
     </aside>
   );
 }
