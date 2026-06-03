@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Menu, X } from 'lucide-react'
 import Sidebar from './components/Sidebar'
-import Header from './components/Header'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
 import Prediksi from './pages/Prediksi'
@@ -12,6 +12,7 @@ import LaporanEkspor from './pages/LaporanEkspor'
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [alerts, setAlerts] = useState([])
 
   const sidebarWidth = sidebarCollapsed
@@ -22,11 +23,37 @@ function App() {
     <BrowserRouter>
       <Toast />
       <div className="app-layout">
+        <div className="mobile-topbar">
+          <button
+            className="mobile-menu-btn"
+            type="button"
+            onClick={() => setMobileSidebarOpen((open) => !open)}
+            aria-label={mobileSidebarOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+            aria-expanded={mobileSidebarOpen}
+          >
+            {mobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <div className="mobile-brand">
+            <strong>PanganAI</strong>
+            <span>Monitoring & Prediksi</span>
+          </div>
+        </div>
+        {mobileSidebarOpen && (
+          <button
+            className="mobile-sidebar-backdrop"
+            type="button"
+            aria-label="Tutup navigasi"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
         <Sidebar
           collapsed={sidebarCollapsed}
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
           onToggle={() => setSidebarCollapsed((c) => !c)}
         />
         <div
+          className="app-main-shell"
           style={{
             marginLeft: sidebarWidth,
             flex: 1,

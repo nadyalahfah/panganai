@@ -65,8 +65,8 @@ const processedAlerts = useMemo(() => {
     >
       <div className="ews-panel" style={{ display: 'flex', gap: 20, minHeight: 450 }}>
       {/* LEFT COLUMN: 70% Table */}
-      <div style={{ flex: 7, background: 'white', borderRadius: 12, border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--gray-200)', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="ews-list-card" style={{ flex: 7, background: 'white', borderRadius: 12, border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="ews-card-header" style={{ padding: '14px 20px', borderBottom: '1px solid var(--gray-200)', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Activity size={18} color="#0F172A" />
             <span style={{ fontWeight: 'bold', fontSize: 15, color: '#0F172A' }}>Monitoring Anomali Nasional</span>
@@ -76,8 +76,8 @@ const processedAlerts = useMemo(() => {
           </span>
         </div>
 
-        <div style={{ overflowX: 'auto', flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="ews-table-wrap" style={{ overflowX: 'auto', flex: 1 }}>
+          <table className="ews-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--gray-200)', background: 'white' }}>
                 <th style={{ padding: '12px 16px', fontSize: 11, color: '#64748B', fontWeight: 700, width: 40 }}>#</th>
@@ -95,7 +95,8 @@ const processedAlerts = useMemo(() => {
                 const MyIcon = a.Icon;
                 const isActive = activeIdx === i;
                 return (
-                  <tr 
+                  <tr
+                    className="ews-alert-row"
                     key={i} 
                     onClick={() => setActiveIdx(i)}
                     style={{ 
@@ -105,16 +106,16 @@ const processedAlerts = useMemo(() => {
                       transition: 'background 0.2s'
                     }}
                   >
-                    <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#9CA3AF' }}>
+                    <td data-label="#" style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#9CA3AF' }}>
                       {i + 1}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td data-label="Komoditas" style={{ padding: '12px 16px' }}>
                       <span className={`komoditas-badge ${getKomoditasClass(a.komoditas)}`} style={{ padding: '2px 8px', fontSize: 11 }}>{a.komoditas}</span>
                     </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1E293B', fontSize: 13 }}>
+                    <td data-label="Provinsi" style={{ padding: '12px 16px', fontWeight: 600, color: '#1E293B', fontSize: 13 }}>
                       {a.provinsi.replace(/^(DI|DKI) /, "")}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td data-label="Risiko" style={{ padding: '12px 16px' }}>
                       <div style={{ 
                         display: 'inline-flex', alignItems: 'center', gap: 4, 
                         background: a.bg, color: a.color, padding: '2px 8px', 
@@ -123,16 +124,16 @@ const processedAlerts = useMemo(() => {
                         <MyIcon size={12} /> {a.level}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 800, color: a.color, fontSize: 13, textAlign: 'right' }}>
+                    <td data-label="Harga" style={{ padding: '12px 16px', fontWeight: 800, color: a.color, fontSize: 13, textAlign: 'right' }}>
                       +{a.kenaikan_pct.toFixed(1)}%
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, color: '#475569', textAlign: 'center', fontWeight: 500 }}>
+                    <td data-label="Rentang" style={{ padding: '12px 16px', fontSize: 12, color: '#475569', textAlign: 'center', fontWeight: 500 }}>
                       {a.days} Hari
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>
+                    <td data-label="Aksi" style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>
                       {a.action}
                     </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                    <td className="ews-row-action" style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <button style={{ 
                         background: isActive ? a.color : 'transparent',
                         border: 'none',
@@ -159,8 +160,8 @@ const processedAlerts = useMemo(() => {
       </div>
 
       {/* RIGHT COLUMN: 30% AI Insight Panel */}
-      <div style={{ flex: 3, background: 'white', borderRadius: 12, border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', background: '#F8FAFC', borderBottom: '1px solid var(--gray-200)' }}>
+      <div className="ews-insight-card" style={{ flex: 3, background: 'white', borderRadius: 12, border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="ews-card-header" style={{ padding: '14px 20px', background: '#F8FAFC', borderBottom: '1px solid var(--gray-200)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Zap size={16} color="#3B82F6" fill="#3B82F6" opacity={0.2} />
             <span style={{ fontWeight: 'bold', fontSize: 14, color: '#0F172A' }}>Rekomendasi AI</span>
@@ -168,7 +169,7 @@ const processedAlerts = useMemo(() => {
         </div>
 
         {activeAlert ? (
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="ews-insight-body" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Header Info */}
             <div style={{ paddingBottom: 16, borderBottom: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>

@@ -41,9 +41,11 @@ const NAV_GROUPS = [
   },
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, mobileOpen = false, onCloseMobile, onToggle }) {
   return (
-    <aside className={`sidebar${collapsed ? " collapsed" : ""}`}>
+    <aside
+      className={`sidebar${collapsed ? " collapsed" : ""}${mobileOpen ? " mobile-open" : ""}`}
+    >
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-text">
@@ -79,6 +81,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 }
                 title={collapsed ? label : undefined}
                 aria-label={label}
+                onClick={onCloseMobile}
               >
                 <span className="nav-link-icon">
                   <Icon size={18} />
