@@ -3,6 +3,7 @@ import pandas as pd
 from typing import List, Optional
 from fastapi import APIRouter, Request, HTTPException
 
+from app.core.config import settings
 from app.services.catboost_prediction_service import get_all_province_predictions_legacy_contract
 from app.services.dataset_service import resolve_komoditas_value
 
@@ -32,7 +33,7 @@ def get_optimizer_routes(request: Request):
     }
 
     try:
-        df = pd.read_csv(r"d:\2026\pangan-ai\panganai\backend\data\master_supply_demand.csv")
+        df = pd.read_csv(settings.DATA_DIR / "master_supply_demand.csv")
     except Exception as e:
         raise HTTPException(status_code=500, detail="Gagal memuat master_supply_demand.csv")
 
