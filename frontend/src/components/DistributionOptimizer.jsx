@@ -54,48 +54,21 @@ const PROV_COORDS = {
 };
 
 
+const formatTonnage = (ton) => {
+  if (ton >= 1000000) return (ton / 1000000).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' juta ton';
+  if (ton >= 1000) return Math.round(ton / 1000).toLocaleString('id-ID') + ' ribu ton';
+  return Math.round(ton).toLocaleString('id-ID') + ' ton';
+};
+
 const generateDynamicReasoning = (komoditas, src, dst, surplus, deficit, routeScore, priority, risk) => {
-  const k = (komoditas || '').toLowerCase();
-  const s = src || '';
-  const d = dst || '';
+  const c = komoditas || 'Komoditas';
+  const coverage = (surplus / deficit) * 100;
+  let coverageStr = "mampu menutup sebagian kebutuhan wilayah tujuan.";
+  if (coverage > 100) coverageStr = "mampu menutup kebutuhan wilayah tujuan secara penuh dengan surplus berlebih.";
+  else if (coverage === 100) coverageStr = "mampu menutup kebutuhan wilayah tujuan secara penuh.";
+  else if (coverage > 80) coverageStr = "mampu menutup sebagian besar kebutuhan wilayah tujuan.";
   
-  const srcJawa = s.includes('Jawa') || s.includes('Banten') || s.includes('Jakarta') || s.includes('Yogyakarta');
-  const dstJawa = d.includes('Jawa') || d.includes('Banten') || d.includes('Jakarta') || d.includes('Yogyakarta');
-  const antarPulau = srcJawa !== dstJawa;
-  
-  if (k.includes('beras')) {
-    if (antarPulau && risk > 5) return `Beras Medium direkomendasikan dikirim dari ${s} karena surplus regional tinggi dan kebutuhan ${d} diproyeksikan meningkat (Risiko +${risk.toFixed(1)}%). Distribusi lintas pulau ini mendesak.`;
-    if (antarPulau) return `Redistribusi Beras dari ${s} ke ${d} direkomendasikan untuk menyeimbangkan stok antar pulau sebelum gejolak harga meluas.`;
-    if (surplus > deficit) return `Pasokan Beras dari ${s} sangat mencukupi untuk sepenuhnya menutup defisit di ${d} secara intra-regional.`;
-    return `Pasokan Beras dari ${s} dapat dialihkan ke ${d} untuk optimalisasi stok lokal dengan tingkat kelayakan distribusi yang tinggi (Skor: ${routeScore}).`;
-  }
-  
-  if (k.includes('cabai')) {
-    if (risk > 15) return `Lonjakan risiko harga Cabai ekstrem (+${risk.toFixed(1)}%) di ${d} membutuhkan intervensi pasokan segera dari surplus ${s}.`;
-    if (routeScore > 85) return `Kondisi kritis: Stabilitas harga Cabai di ${d} terancam. Surplus dari ${s} adalah opsi redistribusi paling logis dan cepat saat ini.`;
-    if (antarPulau) return `Cabai dari ${s} direkomendasikan untuk distribusi lintas pulau guna mengamankan defisit di ${d} dan meredam fluktuasi harga.`;
-    return `Redistribusi Cabai intra-regional dari ${s} ke ${d} sangat disarankan untuk meratakan ketersediaan stok jangka pendek.`;
-  }
-  
-  if (k.includes('bawang')) {
-    if (antarPulau) return `Bawang Merah memerlukan redistribusi lintas pulau karena defisit ${d} cukup besar dan kapasitas pasokan ${s} terpantau aman.`;
-    if (risk > 10) return `Risiko kelangkaan Bawang Merah di ${d} terpantau tinggi (+${risk.toFixed(1)}%). Pengiriman dari ${s} diwajibkan sebagai prioritas ${priority}.`;
-    if (surplus > deficit) return `Surplus Bawang di ${s} cukup besar untuk secara total menutupi kekurangan pasokan yang diproyeksikan di ${d}.`;
-    return `Rute redistribusi Bawang Merah ini dinilai layak (Skor: ${routeScore}) untuk mencegah defisit berkelanjutan di pasar ${d}.`;
-  }
-
-  if (k.includes('telur') || k.includes('ayam')) {
-    if (dstJawa) return `Kebutuhan pasokan di pusat padat populasi seperti ${d} mulai meningkat tajam. Pasokan dari ${s} masih dalam level aman untuk dialihkan.`;
-    if (risk > 10) return `Prediksi harga naik +${risk.toFixed(1)}% di ${d}. Disarankan redistribusi segera dari pasokan ${s}.`;
-    if (antarPulau) return `Distribusi protein via jalur pengiriman dari ${s} ke ${d} diperlukan untuk meratakan stok nasional.`;
-    return `Rute intra-regional ini memiliki kelayakan (Skor: ${routeScore}) untuk memperkuat rantai pasok antara ${s} dan ${d}.`;
-  }
-
-  // Generic fallback variations
-  if (routeScore > 80) return `Dengan route score ${routeScore} dan risiko harga rendah, jalur pengiriman dari ${s} ke ${d} ini layak menjadi prioritas distribusi tahap pertama.`;
-  if (antarPulau) return `Redistribusi logistik lintas pulau dari ${s} menuju titik defisit ${d} dinilai sangat strategis.`;
-  if (risk > 5) return `Fluktuasi harga di ${d} (+${risk.toFixed(1)}%) perlu direspon dengan pemindahan surplus dari ${s} untuk menjaga stabilitas.`;
-  return `Pemindahan surplus pasokan dari lumbung ${s} ke wilayah defisit ${d} merupakan opsi optimal untuk keseimbangan pasar.`;
+  return `${c} direkomendasikan dikirim dari ${src} karena surplus mencapai ${formatTonnage(surplus)}, sementara ${dst} diproyeksikan mengalami defisit ${formatTonnage(deficit)}. Rute ini memperoleh skor kelayakan distribusi sebesar ${routeScore}/100 dan ${coverageStr}`;
 };
 
 export default function DistributionOptimizer({ komoditasList, selKomoditas, onKomoditasChange, routesData, alertsData }) {
@@ -171,20 +144,40 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
     return `${priceStr}\n\n${actionStr}\n\nKonteks Wilayah (${p}):\n${geoMod}`;
   };
 
-  const [activeRec, setActiveRec] = useState(0);
+  const [activeRec, setActiveRec] = useState(null);
   const [flashingCard, setFlashingCard] = useState(null);
+  const [tooltipState, setTooltipState] = useState({ visible: false, x: 0, y: 0, data: null });
 
-  const handleMarkerClick = (idx) => {
-    setActiveRec(idx);
-    setFlashingCard(idx);
+  const handleMapHover = (e, rec) => {
+    setTooltipState({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      data: rec
+    });
+  };
+
+  const handleMapLeave = () => {
+    setTooltipState(prev => ({ ...prev, visible: false }));
+  };
+  
+  const handleMapMove = (e) => {
+    if (tooltipState.visible) {
+      setTooltipState(prev => ({ ...prev, x: e.clientX, y: e.clientY }));
+    }
+  };
+
+  const handleMarkerClick = (routeKey) => {
+    setActiveRec(routeKey);
+    setFlashingCard(routeKey);
     setTimeout(() => setFlashingCard(null), 1500);
   };
 
   useEffect(() => {
-    if (activeRec == null) return;
+    if (!activeRec) return;
     // Small timeout to ensure DOM expansion is complete before scrolling
     setTimeout(() => {
-      const el = document.getElementById(`alert-card-${activeRec}`);
+      const el = document.getElementById(`route-card-${activeRec.replace(/\s+/g, '-')}`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -218,8 +211,8 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
     const recs = filteredRoutes.map((r, i) => {
       let priority = 'Sedang';
       let color = '#F97316';
-      if (r.route_score >= 80) { priority = 'Tinggi'; color = '#EF4444'; }
-      else if (r.route_score < 60) { priority = 'Rendah'; color = '#3B82F6'; }
+      if (r.route_score >= 85) { priority = 'Tinggi'; color = '#EF4444'; }
+      else if (r.route_score < 70) { priority = 'Rendah'; color = '#3B82F6'; }
       
       const src = r.source_province || r.provinsi_asal || r.asal || 'Asal';
       const dst = r.destination_province || r.provinsi_tujuan || r.tujuan || 'Tujuan';
@@ -230,7 +223,12 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
       const dynamicReasoning = generateDynamicReasoning(r.commodity || r.komoditas, src, dst, sTon, dTon, r.route_score || 0, priority, fRisk);
 
       return {
-        id: i,
+        id: `${r.commodity || r.komoditas}-${src}-${dst}`,
+        komoditas: r.commodity || r.komoditas,
+        rawSurplus: sTon,
+        rawDeficit: dTon,
+        coveragePct: Math.round((sTon / dTon) * 100) || 0,
+        routeScore: r.route_score || 0,
         source: { provinsi: src, prediksi_7h: r.forecast_price || 0 },
         dest: { provinsi: dst, prediksi_7h: r.forecast_price || 0 },
         surplus: '+' + Math.round(sTon).toLocaleString('id-ID') + ' Ton',
@@ -272,8 +270,98 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
 
   const activeData = isAlertMode ? alerts[activeRec] : recommendations[activeRec];
 
+  const calculateHeroRoute = (recs) => {
+    if (!recs || recs.length === 0) return null;
+    let bestScore = -1;
+    let hero = null;
+
+    recs.forEach(rec => {
+      let commWeight = 60;
+      if (rec.komoditas.includes('Beras Medium')) commWeight = 100;
+      else if (rec.komoditas.includes('Beras Premium')) commWeight = 70;
+
+      const deficitWeight = Math.min((rec.rawDeficit / 1000000) * 100, 100);
+      const routeWeight = rec.routeScore || 0;
+      const coverageWeight = Math.min(rec.coveragePct, 100);
+
+      const totalScore = (commWeight * 0.3) + (deficitWeight * 0.3) + (coverageWeight * 0.2) + (routeWeight * 0.2);
+
+      if (totalScore > bestScore) {
+        bestScore = totalScore;
+        hero = rec;
+      }
+    });
+    return hero;
+  };
+
+  const generateHeroDampak = (rec) => {
+    if (!rec) return '';
+    const surplusStr = formatTonnage(rec.rawSurplus);
+    const deficitStr = formatTonnage(rec.rawDeficit);
+    return `Menutup proyeksi defisit ${deficitStr} ${rec.komoditas} di ${rec.dest.provinsi} menggunakan surplus utama nasional dari ${rec.source.provinsi} sebesar ${surplusStr}.`;
+  };
+
+  const heroRoute = !isAlertMode ? calculateHeroRoute(recommendations) : null;
+
   return (
     <div className="distrib-optimizer-panel" style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24, minHeight: 400 }}>
+      {/* HERO CARD SECTION */}
+      {heroRoute && (
+        <div style={{ 
+          padding: 24, 
+          backgroundColor: '#FFFFFF', 
+          border: '1px solid #E2E8F0',
+          borderRadius: 12,
+          borderLeft: '4px solid #10B981',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+             <span style={{ color: '#F59E0B', fontSize: 20, marginRight: 8 }}>⭐</span>
+             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1E293B', letterSpacing: '0.05em' }}>REKOMENDASI UTAMA AI</h3>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ 
+              background: '#F1F5F9', color: '#334155', padding: '6px 12px', 
+              borderRadius: 4, fontSize: 13, fontWeight: 800, letterSpacing: '0.05em'
+            }}>
+              [ {heroRoute.komoditas.toUpperCase()} ]
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0F172A' }}>
+              {heroRoute.source.provinsi} <ArrowRight size={20} style={{ display: 'inline', margin: '0 4px', color: '#64748B' }} /> {heroRoute.dest.provinsi}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, padding: '16px 0', borderTop: '1px solid #F1F5F9', borderBottom: '1px solid #F1F5F9' }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 4 }}>Skor Rute</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1E293B' }}>{heroRoute.routeScore} <span style={{fontSize: 14, color: '#94A3B8'}}>/ 100</span></div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 4 }}>Kapasitas Pemenuhan</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1E293B' }}>{heroRoute.coveragePct > 100 ? '100%+' : `${heroRoute.coveragePct}%`}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 4 }}>Status</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10B981', marginRight: 6 }}></span>
+                {heroRoute.coveragePct > 100 ? 'Surplus Berlebih' : 'Pemenuhan Optimal'}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase' }}>Dampak Strategis:</div>
+            <div style={{ fontSize: 15, color: '#334155', lineHeight: 1.6 }}>
+              {generateHeroDampak(heroRoute)}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left: Map */}
       <div style={{ width: '100%', background: 'var(--gray-50)', borderRadius: 12, position: 'relative', overflow: 'hidden', border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
@@ -315,17 +403,33 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
             ))}
             
             {/* Connection Lines (Physical Routes) */}
-            {!isAlertMode && recommendations.length > 0 && recommendations.map((r, idx) => {
+            {!isAlertMode && recommendations.length > 0 && recommendations.map((r) => {
               if (!PROV_COORDS[r.source.provinsi] || !PROV_COORDS[r.dest.provinsi]) return null;
-              const isActive = activeRec === idx;
+              const isActive = activeRec === r.id;
               const opacity = isActive ? 1 : 0.25;
-              const zIndex = isActive ? 100 : idx;
+              const zIndex = isActive ? 100 : 10;
               
               return (
-                <g key={`route-${idx}`} style={{ zIndex }}>
+                <g 
+                  key={`route-${r.id}`} 
+                  style={{ zIndex, cursor: 'pointer' }}
+                  onClick={() => handleMarkerClick(r.id)}
+                  onMouseEnter={(e) => handleMapHover(e, r)}
+                  onMouseLeave={handleMapLeave}
+                  onMouseMove={handleMapMove}
+                >
+                  {/* Invisible thick path for easier hovering */}
                   <path 
                     d={`M${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.source.provinsi][1]} 
-                         Q${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1] - (80 + idx * 5)} 
+                         Q${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1] - 80} 
+                         ${PROV_COORDS[r.dest.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1]}`}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={15}
+                  />
+                  <path 
+                    d={`M${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.source.provinsi][1]} 
+                         Q${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1] - 80} 
                          ${PROV_COORDS[r.dest.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1]}`}
                     fill="none"
                     stroke={r.priorityColor}
@@ -362,8 +466,6 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
                       r="12" fill={r.priorityColor} opacity="0.2" className="pulse-anim" style={{pointerEvents: 'none'}}
                     />
                   )}
-                  
-                  <title>{`${r.source.provinsi} -> ${r.dest.provinsi} | Prioritas: ${r.priority}`}</title>
                 </g>
               );
             })}
@@ -372,9 +474,9 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
             {isAlertMode && alerts.map((alt, idx) => {
               if (!PROV_COORDS[alt.provinsi]) return null;
               const [cx, cy] = PROV_COORDS[alt.provinsi];
-              const isActive = idx === activeRec;
+              const isActive = alt.id === activeRec;
               return (
-                <g key={idx} onClick={() => handleMarkerClick(idx)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
+                <g key={idx} onClick={() => handleMarkerClick(alt.id)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
                   {isActive && (
                     <circle cx={cx} cy={cy} r={24} fill={alt.color} opacity={0.1} className="pulse-anim" style={{ pointerEvents: 'none' }} />
                   )}
@@ -398,28 +500,54 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
 
       {/* Right: Recommendations / Alerts */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 'bold' }}>
-          {isAlertMode ? 'Rekomendasi Intervensi Pasar' : 'Rekomendasi Rute'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 'bold' }}>
+            {isAlertMode ? 'Rekomendasi Intervensi Pasar' : 'Rekomendasi Rute'}
+          </div>
+          {!isAlertMode && recommendations.length > 0 && (
+            <div style={{ fontSize: 11, color: '#64748B', display: 'flex', gap: 12, background: 'white', padding: '4px 10px', borderRadius: 20, border: '1px solid #E2E8F0' }}>
+              <span><strong style={{color:'#EF4444'}}>Tinggi</strong> &ge;85</span>
+              <span><strong style={{color:'#F97316'}}>Sedang</strong> 70-84</span>
+              <span><strong style={{color:'#3B82F6'}}>Rendah</strong> &lt;70</span>
+            </div>
+          )}
         </div>
         
-        {!isAlertMode && recommendations.map((rec, i) => (
+        {!isAlertMode && recommendations.map((rec) => (
           <div 
-            id={`alert-card-${i}`}
+            id={`route-card-${rec.id.replace(/\s+/g, '-')}`}
             key={rec.id} 
-            className={`rec-card ${activeRec === i ? 'active' : ''}`}
-            onClick={() => setActiveRec(i)}
+            className={`rec-card ${activeRec === rec.id ? 'active' : ''}`}
+            onClick={() => setActiveRec(rec.id)}
             style={{ 
               padding: 16, background: 'white', borderRadius: 8, 
-              border: `1px solid ${activeRec === i ? rec.priorityColor : '#E5E7EB'}`,
+              border: `1px solid ${activeRec === rec.id ? rec.priorityColor : '#E5E7EB'}`,
               cursor: 'pointer', transition: 'all 0.2s',
-              boxShadow: activeRec === i ? `0 4px 6px -1px ${rec.priorityColor}33` : '0 1px 2px rgba(0,0,0,0.05)'
+              boxShadow: activeRec === rec.id ? `0 4px 6px -1px ${rec.priorityColor}33` : '0 1px 2px rgba(0,0,0,0.05)',
+              ...(flashingCard === rec.id ? { transform: 'scale(1.02)', boxShadow: `0 0 15px ${rec.priorityColor}` } : {})
             }}
           >
+            {/* Commodity Badge - Task 1 */}
+            <div style={{ 
+              display: 'inline-block',
+              background: '#F1F5F9',
+              color: '#334155',
+              padding: '4px 10px',
+              borderRadius: 4,
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+              marginBottom: 12,
+              borderLeft: `3px solid ${rec.priorityColor}`
+            }}>
+              [ {rec.komoditas.toUpperCase()} ]
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 'bold' }}>
-                <div style={{ color: '#10B981' }}>{rec.source.provinsi.replace(/^(DI|DKI) /, "")}</div>
+                <div style={{ color: '#0F172A' }}>{rec.source.provinsi.replace(/^(DI|DKI) /, "")}</div>
                 <ArrowRight size={14} color="#9CA3AF" />
-                <div style={{ color: rec.priorityColor }}>{rec.dest.provinsi.replace(/^(DI|DKI) /, "")}</div>
+                <div style={{ color: '#0F172A' }}>{rec.dest.provinsi.replace(/^(DI|DKI) /, "")}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: `${rec.priorityColor}15`, color: rec.priorityColor }}>Prioritas {rec.priority}</div>
             </div>
@@ -437,23 +565,43 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
               </div>
             </div>
 
-            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+            {/* Deficit Coverage Indicator - Task 3 */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#64748B', marginBottom: 6 }}>
+                <span>Defisit Tertutup {rec.coveragePct > 100 && <strong style={{color:'#10B981', marginLeft: 4}}>(Surplus Berlebih)</strong>}</span>
+                <span>{formatRupiahShort(rec.rawSurplus)} / {formatRupiahShort(rec.rawDeficit)} ton ({rec.coveragePct}%)</span>
+              </div>
+              <div style={{ width: '100%', background: '#E2E8F0', height: 6, borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(rec.coveragePct, 100)}%`, background: rec.priorityColor, height: '100%', borderRadius: 3, transition: 'width 0.5s' }} />
+              </div>
+            </div>
+
+            {/* Detail overflow fix - Task 7 */}
+            <div style={{ 
+              fontSize: 12, 
+              color: '#475569', 
+              lineHeight: 1.5, 
+              wordBreak: 'break-word', 
+              overflowWrap: 'anywhere', 
+              whiteSpace: 'normal', 
+              maxWidth: '100%' 
+            }}>
               {rec.desc}
             </div>
           </div>
         ))}
         
-        {isAlertMode && alerts.map((alt, i) => (
+        {isAlertMode && alerts.map((alt) => (
           <div 
-            id={`alert-card-${i}`}
+            id={`route-card-${alt.id}`}
             key={alt.id} 
-            className={`rec-card ${activeRec === i ? 'active' : ''}`}
-            onClick={() => setActiveRec(i)}
+            className={`rec-card ${activeRec === alt.id ? 'active' : ''}`}
+            onClick={() => setActiveRec(alt.id)}
             style={{ 
               padding: 16, background: 'white', borderRadius: 8, 
-              border: `1px solid ${activeRec === i ? alt.color : '#E5E7EB'}`,
+              border: `1px solid ${activeRec === alt.id ? alt.color : '#E5E7EB'}`,
               cursor: 'pointer', transition: 'all 0.2s',
-              boxShadow: activeRec === i ? `0 4px 6px -1px ${alt.color}33` : '0 1px 2px rgba(0,0,0,0.05)'
+              boxShadow: activeRec === alt.id ? `0 4px 6px -1px ${alt.color}33` : '0 1px 2px rgba(0,0,0,0.05)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -496,6 +644,35 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
           </div>
         )}
       </div>
+      {/* Tooltip Overlay */}
+      {tooltipState.visible && tooltipState.data && (
+        <div style={{
+          position: 'fixed',
+          top: tooltipState.y + 15,
+          left: tooltipState.x + 15,
+          background: 'rgba(15, 23, 42, 0.95)',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: 8,
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
+          zIndex: 99999,
+          pointerEvents: 'none',
+          minWidth: 220,
+          fontSize: 12,
+          lineHeight: 1.5
+        }}>
+          <div style={{ fontWeight: 800, marginBottom: 4, color: '#38BDF8', letterSpacing: '0.05em' }}>{tooltipState.data.komoditas.toUpperCase()}</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>{tooltipState.data.source.provinsi} &rarr; {tooltipState.data.dest.provinsi}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <div><div style={{ color: '#94A3B8', fontSize: 10 }}>Surplus</div><div style={{ fontWeight: 600 }}>{Math.round(tooltipState.data.rawSurplus / 1000).toLocaleString('id-ID')}k Ton</div></div>
+            <div><div style={{ color: '#94A3B8', fontSize: 10 }}>Defisit</div><div style={{ fontWeight: 600 }}>{Math.round(tooltipState.data.rawDeficit / 1000).toLocaleString('id-ID')}k Ton</div></div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: 6 }}>
+            <div>Skor: <strong style={{ color: '#FBBF24' }}>{tooltipState.data.routeScore}</strong></div>
+            <div><strong style={{ color: tooltipState.data.priorityColor }}>{tooltipState.data.priority}</strong></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
