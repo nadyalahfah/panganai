@@ -53,8 +53,143 @@ const PROV_COORDS = {
   'Papua Barat': [560, 140], 'Papua': [640, 150]
 };
 
+
+const generateDynamicReasoning = (komoditas, src, dst, surplus, deficit, routeScore, priority, risk) => {
+  const k = (komoditas || '').toLowerCase();
+  const s = src || '';
+  const d = dst || '';
+  
+  const srcJawa = s.includes('Jawa') || s.includes('Banten') || s.includes('Jakarta') || s.includes('Yogyakarta');
+  const dstJawa = d.includes('Jawa') || d.includes('Banten') || d.includes('Jakarta') || d.includes('Yogyakarta');
+  const antarPulau = srcJawa !== dstJawa;
+  
+  if (k.includes('beras')) {
+    if (antarPulau && risk > 5) return `Beras Medium direkomendasikan dikirim dari ${s} karena surplus regional tinggi dan kebutuhan ${d} diproyeksikan meningkat (Risiko +${risk.toFixed(1)}%). Distribusi lintas pulau ini mendesak.`;
+    if (antarPulau) return `Redistribusi Beras dari ${s} ke ${d} direkomendasikan untuk menyeimbangkan stok antar pulau sebelum gejolak harga meluas.`;
+    if (surplus > deficit) return `Pasokan Beras dari ${s} sangat mencukupi untuk sepenuhnya menutup defisit di ${d} secara intra-regional.`;
+    return `Pasokan Beras dari ${s} dapat dialihkan ke ${d} untuk optimalisasi stok lokal dengan tingkat kelayakan distribusi yang tinggi (Skor: ${routeScore}).`;
+  }
+  
+  if (k.includes('cabai')) {
+    if (risk > 15) return `Lonjakan risiko harga Cabai ekstrem (+${risk.toFixed(1)}%) di ${d} membutuhkan intervensi pasokan segera dari surplus ${s}.`;
+    if (routeScore > 85) return `Kondisi kritis: Stabilitas harga Cabai di ${d} terancam. Surplus dari ${s} adalah opsi redistribusi paling logis dan cepat saat ini.`;
+    if (antarPulau) return `Cabai dari ${s} direkomendasikan untuk distribusi lintas pulau guna mengamankan defisit di ${d} dan meredam fluktuasi harga.`;
+    return `Redistribusi Cabai intra-regional dari ${s} ke ${d} sangat disarankan untuk meratakan ketersediaan stok jangka pendek.`;
+  }
+  
+  if (k.includes('bawang')) {
+    if (antarPulau) return `Bawang Merah memerlukan redistribusi lintas pulau karena defisit ${d} cukup besar dan kapasitas pasokan ${s} terpantau aman.`;
+    if (risk > 10) return `Risiko kelangkaan Bawang Merah di ${d} terpantau tinggi (+${risk.toFixed(1)}%). Pengiriman dari ${s} diwajibkan sebagai prioritas ${priority}.`;
+    if (surplus > deficit) return `Surplus Bawang di ${s} cukup besar untuk secara total menutupi kekurangan pasokan yang diproyeksikan di ${d}.`;
+    return `Rute redistribusi Bawang Merah ini dinilai layak (Skor: ${routeScore}) untuk mencegah defisit berkelanjutan di pasar ${d}.`;
+  }
+
+  if (k.includes('telur') || k.includes('ayam')) {
+    if (dstJawa) return `Kebutuhan pasokan di pusat padat populasi seperti ${d} mulai meningkat tajam. Pasokan dari ${s} masih dalam level aman untuk dialihkan.`;
+    if (risk > 10) return `Prediksi harga naik +${risk.toFixed(1)}% di ${d}. Disarankan redistribusi segera dari pasokan ${s}.`;
+    if (antarPulau) return `Distribusi protein via jalur pengiriman dari ${s} ke ${d} diperlukan untuk meratakan stok nasional.`;
+    return `Rute intra-regional ini memiliki kelayakan (Skor: ${routeScore}) untuk memperkuat rantai pasok antara ${s} dan ${d}.`;
+  }
+
+  // Generic fallback variations
+  if (routeScore > 80) return `Dengan route score ${routeScore} dan risiko harga rendah, jalur pengiriman dari ${s} ke ${d} ini layak menjadi prioritas distribusi tahap pertama.`;
+  if (antarPulau) return `Redistribusi logistik lintas pulau dari ${s} menuju titik defisit ${d} dinilai sangat strategis.`;
+  if (risk > 5) return `Fluktuasi harga di ${d} (+${risk.toFixed(1)}%) perlu direspon dengan pemindahan surplus dari ${s} untuk menjaga stabilitas.`;
+  return `Pemindahan surplus pasokan dari lumbung ${s} ke wilayah defisit ${d} merupakan opsi optimal untuk keseimbangan pasar.`;
+};
+
 export default function DistributionOptimizer({ komoditasList, selKomoditas, onKomoditasChange, routesData, alertsData }) {
+
+  const getSmartReasoning = (commodity, province, forecastPct, riskLevel, currentPrice) => {
+    const c = (commodity || '').toLowerCase();
+    const p = province || '';
+    const pLow = p.toLowerCase();
+    const pct = forecastPct ? forecastPct.toFixed(1) : 0;
+    
+    // Base Price String
+    let priceStr = "";
+    if (currentPrice) {
+      priceStr = `Harga saat ini Rp${currentPrice.toLocaleString('id-ID')}/kg dengan proyeksi kenaikan ${pct}%.`;
+    } else {
+      priceStr = `Proyeksi kenaikan mencapai ${pct}%.`;
+    }
+
+    // Commodity-Specific Intervention Logic
+    let actionStr = "";
+    if (riskLevel === 'High Risk Alert' || riskLevel === 'Intervensi Segera') {
+      if (c.includes('cabai')) {
+        actionStr = `Prioritas tindakan:\n• Verifikasi stok distributor utama\n• Monitoring sentra produksi terdekat\n• Perkuat jalur pasok antar wilayah`;
+      } else if (c.includes('bawang')) {
+        actionStr = `Prioritas tindakan:\n• Pengecekan stok gudang penyimpanan\n• Percepatan distribusi dari sentra panen\n• Operasi pasar spesifik komoditas`;
+      } else if (c.includes('beras')) {
+        actionStr = `Prioritas tindakan:\n• Evaluasi cadangan stok Bulog\n• Operasi pasar & SPHP\n• Persiapan intervensi cadangan strategis`;
+      } else if (c.includes('telur') || c.includes('ayam')) {
+        actionStr = `Prioritas tindakan:\n• Monitoring pasokan peternak\n• Evaluasi biaya pakan ternak\n• Penguatan koordinasi rantai distribusi`;
+      } else if (c.includes('minyak')) {
+        actionStr = `Prioritas tindakan:\n• Pemantauan ketat kepatuhan HET\n• Audit stok tingkat distributor\n• Inspeksi pasar berkelanjutan`;
+      } else {
+        actionStr = `Intervensi segera direkomendasikan untuk menstabilkan gejolak harga.`;
+      }
+    } else if (riskLevel === 'Medium Risk Alert' || riskLevel === 'Monitoring Prioritas') {
+      if (c.includes('cabai') || c.includes('bawang')) {
+        actionStr = `Sinyal tekanan harga Hortikultura mulai muncul.\nDisarankan pemantauan distribusi dan evaluasi pasokan.`;
+      } else if (c.includes('beras')) {
+        actionStr = `Terindikasi peningkatan tekanan harga.\nEvaluasi ketersediaan stok dan distribusi direkomendasikan.`;
+      } else if (c.includes('telur') || c.includes('ayam')) {
+        actionStr = `Tekanan harga protein mulai terdeteksi.\nPemantauan rantai pasok direkomendasikan.`;
+      } else {
+        actionStr = `Sinyal tekanan harga mulai terdeteksi.\nPemantauan distribusi dan evaluasi stok direkomendasikan.`;
+      }
+    } else {
+      actionStr = `Kondisi pasar relatif stabil.\nPemantauan berkala direkomendasikan.`;
+    }
+    
+    // Region-Specific Intelligence
+    let geoMod = "";
+    if (pLow.includes('papua')) {
+      geoMod = "Mengingat tantangan inter-island logistics, siapkan shipping readiness untuk koridor timur.";
+    } else if (pLow.includes('aceh')) {
+      geoMod = "Optimalkan inter-district distribution sepanjang koridor pasokan Sumatera Utara.";
+    } else if (pLow.includes('jambi')) {
+      geoMod = "Evaluasi plantation logistics dan amankan jalur distribusi Sumatera bagian tengah.";
+    } else if (pLow.includes('sulawesi selatan')) {
+      geoMod = "Sebagai regional hub, perkuat koordinasi untuk mendukung distribusi Indonesia Timur.";
+    } else if (pLow.includes('jawa barat') || pLow.includes('jakarta') || pLow.includes('banten')) {
+      geoMod = "Tekanan consumer demand tinggi. Lakukan monitoring strategis pada pasar urban utama.";
+    } else if (pLow.includes('sumatera')) {
+      geoMod = "Fokus pada pemantauan distribusi antar-kabupaten dan rute lintas Sumatera.";
+    } else if (pLow.includes('jawa')) {
+      geoMod = "Wilayah padat populasi. Pastikan kelancaran jalur distribusi darat strategis.";
+    } else if (pLow.includes('kalimantan')) {
+      geoMod = "Monitoring ketersediaan angkutan antar-provinsi dan kesiapan stok logistik regional.";
+    } else if (pLow.includes('maluku') || pLow.includes('ntt') || pLow.includes('ntb')) {
+      geoMod = "Wilayah kepulauan membutuhkan pemantauan jadwal tol laut dan distribusi antar-pulau.";
+    } else {
+      geoMod = "Pastikan koordinasi rantai pasok dengan wilayah surplus terdekat.";
+    }
+    
+    return `${priceStr}\n\n${actionStr}\n\nKonteks Wilayah (${p}):\n${geoMod}`;
+  };
+
   const [activeRec, setActiveRec] = useState(0);
+  const [flashingCard, setFlashingCard] = useState(null);
+
+  const handleMarkerClick = (idx) => {
+    setActiveRec(idx);
+    setFlashingCard(idx);
+    setTimeout(() => setFlashingCard(null), 1500);
+  };
+
+  useEffect(() => {
+    if (activeRec == null) return;
+    // Small timeout to ensure DOM expansion is complete before scrolling
+    setTimeout(() => {
+      const el = document.getElementById(`alert-card-${activeRec}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
+  }, [activeRec]);
   const normalizedKomoditas = useMemo(
     () =>
       (komoditasList || []).map((k) =>
@@ -81,36 +216,54 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
     const alertMode = filteredRoutes.length === 0 && filteredAlerts.length > 0;
     
     const recs = filteredRoutes.map((r, i) => {
-      let priority = 'Medium';
+      let priority = 'Sedang';
       let color = '#F97316';
-      if (r.route_score >= 80) { priority = 'High'; color = '#EF4444'; }
-      else if (r.route_score < 60) { priority = 'Low'; color = '#3B82F6'; }
+      if (r.route_score >= 80) { priority = 'Tinggi'; color = '#EF4444'; }
+      else if (r.route_score < 60) { priority = 'Rendah'; color = '#3B82F6'; }
       
+      const src = r.source_province || r.provinsi_asal || r.asal || 'Asal';
+      const dst = r.destination_province || r.provinsi_tujuan || r.tujuan || 'Tujuan';
+      const fRisk = r.forecast_change_pct || 0;
+      const sTon = r.surplus_ton || 0;
+      const dTon = r.deficit_ton || 0;
+      
+      const dynamicReasoning = generateDynamicReasoning(r.commodity || r.komoditas, src, dst, sTon, dTon, r.route_score || 0, priority, fRisk);
+
       return {
         id: i,
-        source: { provinsi: r.source_province || r.provinsi_asal || r.asal || '', prediksi_7h: r.forecast_price || 0 },
-        dest: { provinsi: r.destination_province || r.provinsi_tujuan || r.tujuan || '', prediksi_7h: r.forecast_price || 0 },
-        surplus: '+' + Math.round(r.surplus_ton || 0).toLocaleString('id-ID') + ' Ton',
-        deficit: '-' + Math.round(r.deficit_ton || 0).toLocaleString('id-ID') + ' Ton',
+        source: { provinsi: src, prediksi_7h: r.forecast_price || 0 },
+        dest: { provinsi: dst, prediksi_7h: r.forecast_price || 0 },
+        surplus: '+' + Math.round(sTon).toLocaleString('id-ID') + ' Ton',
+        deficit: '-' + Math.round(dTon).toLocaleString('id-ID') + ' Ton',
         priority: priority,
         priorityColor: color,
-        desc: r.reason || `Optimized route from ${r.source_province} to ${r.destination_province} based on backend Need Score.`
+        desc: dynamicReasoning
       };
     });
 
     const alts = filteredAlerts.map((a, i) => {
       let color = '#F97316';
-      if (a.risk_level === 'High Risk Alert') color = '#EF4444';
+      let displayLevel = 'Monitoring Prioritas';
+      if (a.risk_level === 'High Risk Alert') {
+        color = '#EF4444';
+        displayLevel = 'Intervensi Segera';
+      } else if (a.risk_level === 'Medium Risk Alert') {
+        displayLevel = 'Monitoring Prioritas';
+      } else {
+        displayLevel = 'Normal';
+      }
       
+      let finalDesc = getSmartReasoning(a.commodity || a.komoditas, a.province || a.provinsi, a.forecast_change_pct, displayLevel, a.current_price);
       return {
         id: i,
-        provinsi: a.province || '',
-        risk_level: a.risk_level,
+        komoditas: a.commodity || a.komoditas || 'Komoditas',
+        provinsi: a.province || a.provinsi || '',
+        risk_level: displayLevel,
         color: color,
         forecast_change_pct: a.forecast_change_pct,
         current_price: a.current_price,
         forecast_price: a.forecast_price,
-        desc: a.reason || `Risk alert due to ${a.forecast_change_pct}% forecast spike.`
+        desc: finalDesc
       };
     });
 
@@ -125,7 +278,7 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
       <div style={{ width: '100%', background: 'var(--gray-50)', borderRadius: 12, position: 'relative', overflow: 'hidden', border: '1px solid var(--gray-200)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
           <div style={{ fontWeight: 'bold', fontSize: 15, marginBottom: 8 }}>
-            {isAlertMode ? 'Forecast Risk Monitoring Engine' : 'Physical Redistribution Engine'}
+            {isAlertMode ? 'Mesin Stabilisasi Pasar' : 'Mesin Redistribusi Fisik'}
           </div>
           {komoditasList && komoditasList.length > 0 && (
             <select 
@@ -162,65 +315,76 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
             ))}
             
             {/* Connection Lines (Physical Routes) */}
-            {!isAlertMode && activeData && PROV_COORDS[activeData.source.provinsi] && PROV_COORDS[activeData.dest.provinsi] && (
-              <g>
-                <path 
-                  d={`M${PROV_COORDS[activeData.source.provinsi][0]},${PROV_COORDS[activeData.source.provinsi][1]} 
-                       Q${PROV_COORDS[activeData.source.provinsi][0]},${PROV_COORDS[activeData.dest.provinsi][1] - 80} 
-                       ${PROV_COORDS[activeData.dest.provinsi][0]},${PROV_COORDS[activeData.dest.provinsi][1]}`}
-                  fill="none"
-                  stroke={activeData.priorityColor}
-                  strokeWidth={2.5}
-                  strokeDasharray="6 4"
-                  className="dash-anim"
-                />
-                
-                {/* Source Marker */}
-                <circle 
-                  cx={PROV_COORDS[activeData.source.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.source.provinsi][1]} 
-                  r="5" fill="#10B981" stroke="white" strokeWidth="1.5" 
-                />
-                <circle 
-                  cx={PROV_COORDS[activeData.source.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.source.provinsi][1]} 
-                  r="12" fill="#10B981" opacity="0.2" className="pulse-anim"
-                />
-                
-                {/* Dest Marker */}
-                <circle 
-                  cx={PROV_COORDS[activeData.dest.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.dest.provinsi][1]} 
-                  r="5" fill={activeData.priorityColor} stroke="white" strokeWidth="1.5" 
-                />
-                <circle 
-                  cx={PROV_COORDS[activeData.dest.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.dest.provinsi][1]} 
-                  r="12" fill={activeData.priorityColor} opacity="0.2" className="pulse-anim"
-                />
-              </g>
-            )}
+            {!isAlertMode && recommendations.length > 0 && recommendations.map((r, idx) => {
+              if (!PROV_COORDS[r.source.provinsi] || !PROV_COORDS[r.dest.provinsi]) return null;
+              const isActive = activeRec === idx;
+              const opacity = isActive ? 1 : 0.25;
+              const zIndex = isActive ? 100 : idx;
+              
+              return (
+                <g key={`route-${idx}`} style={{ zIndex }}>
+                  <path 
+                    d={`M${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.source.provinsi][1]} 
+                         Q${PROV_COORDS[r.source.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1] - (80 + idx * 5)} 
+                         ${PROV_COORDS[r.dest.provinsi][0]},${PROV_COORDS[r.dest.provinsi][1]}`}
+                    fill="none"
+                    stroke={r.priorityColor}
+                    strokeWidth={isActive ? 2.5 : 1.5}
+                    strokeDasharray="6 4"
+                    opacity={opacity}
+                    className="dash-anim"
+                  />
+                  
+                  {/* Source Marker */}
+                  <circle 
+                    cx={PROV_COORDS[r.source.provinsi][0]} 
+                    cy={PROV_COORDS[r.source.provinsi][1]} 
+                    r={isActive ? 5 : 4} fill="#10B981" stroke="white" strokeWidth={isActive ? 1.5 : 0.5} opacity={opacity + 0.3}
+                  />
+                  {isActive && (
+                    <circle 
+                      cx={PROV_COORDS[r.source.provinsi][0]} 
+                      cy={PROV_COORDS[r.source.provinsi][1]} 
+                      r="12" fill="#10B981" opacity="0.2" className="pulse-anim" style={{pointerEvents: 'none'}}
+                    />
+                  )}
+                  
+                  {/* Dest Marker */}
+                  <circle 
+                    cx={PROV_COORDS[r.dest.provinsi][0]} 
+                    cy={PROV_COORDS[r.dest.provinsi][1]} 
+                    r={isActive ? 5 : 4} fill={r.priorityColor} stroke="white" strokeWidth={isActive ? 1.5 : 0.5} opacity={opacity + 0.3}
+                  />
+                  {isActive && (
+                    <circle 
+                      cx={PROV_COORDS[r.dest.provinsi][0]} 
+                      cy={PROV_COORDS[r.dest.provinsi][1]} 
+                      r="12" fill={r.priorityColor} opacity="0.2" className="pulse-anim" style={{pointerEvents: 'none'}}
+                    />
+                  )}
+                  
+                  <title>{`${r.source.provinsi} -> ${r.dest.provinsi} | Prioritas: ${r.priority}`}</title>
+                </g>
+              );
+            })}
 
             {/* Warning Markers (Market Alerts) */}
-            {isAlertMode && activeData && PROV_COORDS[activeData.provinsi] && (
-              <g>
-                <circle 
-                  cx={PROV_COORDS[activeData.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.provinsi][1]} 
-                  r="6" fill={activeData.color} stroke="white" strokeWidth="2" 
-                />
-                <circle 
-                  cx={PROV_COORDS[activeData.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.provinsi][1]} 
-                  r="16" fill={activeData.color} opacity="0.3" className="pulse-anim"
-                />
-                <circle 
-                  cx={PROV_COORDS[activeData.provinsi][0]} 
-                  cy={PROV_COORDS[activeData.provinsi][1]} 
-                  r="24" fill={activeData.color} opacity="0.1" className="pulse-anim"
-                />
-              </g>
-            )}
+            {isAlertMode && alerts.map((alt, idx) => {
+              if (!PROV_COORDS[alt.provinsi]) return null;
+              const [cx, cy] = PROV_COORDS[alt.provinsi];
+              const isActive = idx === activeRec;
+              return (
+                <g key={idx} onClick={() => handleMarkerClick(idx)} style={{ cursor: 'pointer', transition: 'all 0.3s' }}>
+                  {isActive && (
+                    <circle cx={cx} cy={cy} r={24} fill={alt.color} opacity={0.1} className="pulse-anim" style={{ pointerEvents: 'none' }} />
+                  )}
+                  {isActive && (
+                    <circle cx={cx} cy={cy} r={16} fill={alt.color} opacity={0.3} className="pulse-anim" style={{ pointerEvents: 'none' }} />
+                  )}
+                  <circle cx={cx} cy={cy} r={isActive ? 6 : 4} fill={alt.color} opacity={isActive ? 1 : 0.7} stroke={isActive ? "white" : "none"} strokeWidth={isActive ? 2 : 0} className="marker-hover" />
+                </g>
+              );
+            })}
           </g>
         </svg>
 
@@ -235,11 +399,12 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
       {/* Right: Recommendations / Alerts */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 16, fontWeight: 'bold' }}>
-          {isAlertMode ? 'Market Risk Alerts' : 'Recommendations'}
+          {isAlertMode ? 'Rekomendasi Intervensi Pasar' : 'Rekomendasi Rute'}
         </div>
         
         {!isAlertMode && recommendations.map((rec, i) => (
           <div 
+            id={`alert-card-${i}`}
             key={rec.id} 
             className={`rec-card ${activeRec === i ? 'active' : ''}`}
             onClick={() => setActiveRec(i)}
@@ -256,9 +421,7 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
                 <ArrowRight size={14} color="#9CA3AF" />
                 <div style={{ color: rec.priorityColor }}>{rec.dest.provinsi.replace(/^(DI|DKI) /, "")}</div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: `${rec.priorityColor}15`, color: rec.priorityColor }}>
-                {rec.priority} Priority
-              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: `${rec.priorityColor}15`, color: rec.priorityColor }}>Prioritas {rec.priority}</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
@@ -268,13 +431,13 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
                 <div style={{ fontSize: 11, color: '#9CA3AF' }}>{formatRupiahShort(rec.source.prediksi_7h)}/kg</div>
               </div>
               <div style={{ background: '#F8FAFC', padding: 8, borderRadius: 6 }}>
-                <div style={{ fontSize: 11, color: '#64748B' }}>Est. Deficit</div>
+                <div style={{ fontSize: 11, color: '#64748B' }}>Est. Defisit</div>
                 <div style={{ fontSize: 14, fontWeight: 'bold', color: '#EF4444' }}>{rec.deficit}</div>
                 <div style={{ fontSize: 11, color: '#9CA3AF' }}>{formatRupiahShort(rec.dest.prediksi_7h)}/kg</div>
               </div>
             </div>
 
-            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4, whiteSpace: 'pre-line' }}>
               {rec.desc}
             </div>
           </div>
@@ -282,6 +445,7 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
         
         {isAlertMode && alerts.map((alt, i) => (
           <div 
+            id={`alert-card-${i}`}
             key={alt.id} 
             className={`rec-card ${activeRec === i ? 'active' : ''}`}
             onClick={() => setActiveRec(i)}
@@ -295,25 +459,26 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 'bold' }}>
                 <AlertCircle size={16} color={alt.color} />
-                <div style={{ color: '#0F172A' }}>{alt.provinsi}</div>
+                <div style={{ color: '#0F172A' }}>
+                  <div style={{ fontSize: 10, color: '#64748B', fontWeight: 'normal' }}>Wilayah Prioritas Intervensi</div>
+                  {alt.provinsi}
+                </div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: `${alt.color}15`, color: alt.color }}>
-                {alt.risk_level}
-              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 11, fontWeight: 'bold', padding: '2px 8px', borderRadius: 12, background: `${alt.color}15`, color: alt.color }}>{alt.risk_level}</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
               <div style={{ background: '#F8FAFC', padding: 8, borderRadius: 6 }}>
-                <div style={{ fontSize: 11, color: '#64748B' }}>Current Price</div>
-                <div style={{ fontSize: 14, fontWeight: 'bold', color: '#0F172A' }}>{formatRupiahShort(alt.current_price)}</div>
+                <div style={{ fontSize: 11, color: '#64748B' }}>Harga Saat Ini</div>
+                <div style={{ fontSize: 14, fontWeight: 'bold', color: '#0F172A' }}>{formatRupiahShort(alt.current_price)}/kg</div>
               </div>
               <div style={{ background: '#F8FAFC', padding: 8, borderRadius: 6 }}>
-                <div style={{ fontSize: 11, color: '#64748B' }}>Forecast (+7D)</div>
+                <div style={{ fontSize: 11, color: '#64748B' }}>Dampak Prediksi (+7 Hari)</div>
                 <div style={{ fontSize: 14, fontWeight: 'bold', color: alt.color }}>+{alt.forecast_change_pct.toFixed(1)}%</div>
               </div>
             </div>
 
-            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.4, whiteSpace: 'pre-line' }}>
               {alt.desc}
             </div>
           </div>
@@ -327,7 +492,7 @@ export default function DistributionOptimizer({ komoditasList, selKomoditas, onK
 
         {isAlertMode && alerts.length === 0 && (
           <div style={{ padding: 20, textAlign: 'center', color: '#9CA3AF', background: 'white', borderRadius: 8 }}>
-            Belum ada risk alert.
+            Belum ada rekomendasi intervensi pasar.
           </div>
         )}
       </div>

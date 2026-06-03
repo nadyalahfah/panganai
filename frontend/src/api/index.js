@@ -117,15 +117,12 @@ export async function fetchDashboardDetail(komoditas, provinsi, signal) {
 // ── Helpers ──────────────────────────────────────────────────
 export function formatRupiah(num) {
   if (num == null) return "-";
-  return "Rp " + Math.round(num).toLocaleString("id-ID");
+  return "Rp" + Math.round(num).toLocaleString("id-ID") + "/kg";
 }
 
 export function formatRupiahShort(num) {
   if (num == null) return "-";
-  if (num >= 1000) {
-    return "Rp" + Math.round(num / 1000) + "rb";
-  }
-  return "Rp" + Math.round(num);
+  return "Rp" + Math.round(num).toLocaleString("id-ID");
 }
 
 export function formatPct(val) {

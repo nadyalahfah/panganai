@@ -127,15 +127,15 @@ export default function TabelHargaHarian() {
     return highest.name
   }, [data])
   const marketCondition = useMemo(() => {
-    if (data.length === 0) return 'Stable'
+    if (data.length === 0) return 'Stabil'
     const avgPct = data.reduce((sum, r) => sum + r.pct, 0) / data.length
-    if (avgPct > 2) return 'High Risk'
-    if (avgPct > 0.5) return 'Watchlist'
-    return 'Stable'
+    if (avgPct > 2) return 'Risiko Tinggi'
+    if (avgPct > 0.5) return 'Waspada'
+    return 'Stabil'
   }, [data])
   const aiExplanation = useMemo(() => {
     if (!topRising) return 'Data tidak tersedia untuk analisis.'
-    const statusText = marketCondition === 'High Risk' ? 'diperlukan operasi pasar segera' : marketCondition === 'Watchlist' ? 'diperlukan monitoring distribusi secara berkala' : 'dinamika masih dalam batas aman'
+    const statusText = marketCondition === 'Risiko Tinggi' ? 'diperlukan operasi pasar segera' : marketCondition === 'Waspada' ? 'diperlukan monitoring distribusi secara berkala' : 'dinamika masih dalam batas aman'
     const provText = highestRiskProvince !== 'N/A' ? `${highestRiskProvince} menjadi wilayah dengan risiko kenaikan harga terbesar. ` : ''
     return `${topRising.komoditas} menunjukkan kenaikan tertinggi dalam periode pengamatan (+${topRising.pct.toFixed(1)}%). ${provText}Kondisi pasar saat ini berada pada status ${marketCondition} sehingga ${statusText}.`
   }, [topRising, highestRiskProvince, marketCondition])
@@ -153,7 +153,7 @@ export default function TabelHargaHarian() {
         {/* Top Rising */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-            <TrendingUp size={14} color="var(--danger)" /> TOP RISING COMMODITY
+            <TrendingUp size={14} color="var(--danger)" /> KOMODITAS PALING NAIK
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             {topRising ? topRising.komoditas : '-'}
@@ -166,7 +166,7 @@ export default function TabelHargaHarian() {
         {/* Most Stable */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-            <Minus size={14} color="var(--success)" /> MOST STABLE COMMODITY
+            <Minus size={14} color="var(--success)" /> KOMODITAS PALING STABIL
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             {mostStable ? mostStable.komoditas : '-'}
@@ -179,7 +179,7 @@ export default function TabelHargaHarian() {
         {/* Highest Risk Province */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-            <MapPin size={14} color="var(--warning)" /> HIGHEST RISK PROVINCE
+            <MapPin size={14} color="var(--warning)" /> PROVINSI RISIKO TERTINGGI
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
             {highestRiskProvince}
@@ -192,9 +192,9 @@ export default function TabelHargaHarian() {
         {/* Market Condition */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-            <Activity size={14} color={marketCondition === 'High Risk' ? 'var(--danger)' : marketCondition === 'Watchlist' ? 'var(--warning)' : 'var(--success)'} /> MARKET CONDITION
+            <Activity size={14} color={marketCondition === 'Risiko Tinggi' ? 'var(--danger)' : marketCondition === 'Waspada' ? 'var(--warning)' : 'var(--success)'} /> KONDISI PASAR
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: marketCondition === 'High Risk' ? 'var(--danger)' : marketCondition === 'Watchlist' ? 'var(--warning)' : 'var(--success)' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: marketCondition === 'Risiko Tinggi' ? 'var(--danger)' : marketCondition === 'Waspada' ? 'var(--warning)' : 'var(--success)' }}>
             {marketCondition}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>

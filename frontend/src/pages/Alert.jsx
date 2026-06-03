@@ -64,18 +64,13 @@ export default function Alert() {
   const topKomoditas = Object.entries(komoditasCounts).sort((a, b) => b[1] - a[1])[0]
 
   const getUrgencyBadge = (pct) => {
-    if (pct > 15) return <span className="badge badge-danger">🔴 Critical</span>
-    if (pct > 10) return <span className="badge badge-accent">🟠 High</span>
-    if (pct > 5) return <span className="badge badge-warning">🟡 Medium</span>
-    return <span className="badge badge-success">🟢 Low</span>
+    if (pct > 15) return <span className="badge badge-danger">🔴 Kritis</span>
+    if (pct > 10) return <span className="badge badge-accent">🟠 Tinggi</span>
+    if (pct > 5) return <span className="badge badge-warning">🟡 Sedang</span>
+    return <span className="badge badge-success">🟢 Rendah</span>
   }
 
-  const getRecommendedAction = (pct) => {
-    if (pct > 15) return 'Prioritize Distribution'
-    if (pct > 10) return 'Increase Monitoring'
-    if (pct > 5) return 'Monitor Trend'
-    return 'Normal'
-  }
+
 
   const getRowClass = (pct) => {
     if (pct > 15) return 'row-naik'
@@ -163,9 +158,8 @@ export default function Alert() {
                     ['komoditas', 'Komoditas'],
                     ['provinsi', 'Provinsi'],
                     ['harga_sekarang', 'Harga Saat Ini'],
-                    ['kenaikan_pct', 'Forecast Increase (%)'],
-                    [null, 'Risk Level'],
-                    [null, 'Recommended Action'],
+                    ['kenaikan_pct', 'Prediksi Kenaikan (%)'],
+                    [null, 'Tingkat Risiko'],
                   ].map(([key, label]) => (
                     <th key={label} onClick={() => key && handleSort(key)} style={{ cursor: key ? 'pointer' : 'default' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -189,11 +183,6 @@ export default function Alert() {
                       </span>
                     </td>
                     <td>{getUrgencyBadge(a.kenaikan_pct)}</td>
-                    <td>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>
-                        {getRecommendedAction(a.kenaikan_pct)}
-                      </span>
-                    </td>
                   </tr>
                 ))}
               </tbody>

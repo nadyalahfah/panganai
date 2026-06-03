@@ -4,16 +4,60 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import DistributionOptimizer from '../components/DistributionOptimizer'
 
 const STATUS_CONFIG = {
-  open:     { badge: '✅ Terbuka', color: '#16A34A', bg: 'rgba(34,197,94,0.1)' },
-  moderate: { badge: '⚠️ Moderate', color: '#B45309', bg: 'rgba(234,179,8,0.12)' },
+  open:     { badge: '✅ Direkomendasikan', color: '#16A34A', bg: 'rgba(34,197,94,0.1)' },
+  moderate: { badge: '⚠️ Siaga', color: '#B45309', bg: 'rgba(234,179,8,0.12)' },
   closed:   { badge: '❌ Tertutup', color: '#DC2626', bg: 'rgba(239,68,68,0.1)' },
 }
 
 const RISK_CONFIG = {
-  LOW: { label: '🟢 Low', color: '#16A34A' },
-  MED: { label: '🟡 Medium', color: '#B45309' },
-  HIGH: { label: '🔴 High', color: '#DC2626' },
+  LOW: { label: '🟢 Rendah', color: '#16A34A' },
+  MED: { label: '🟡 Sedang', color: '#B45309' },
+  HIGH: { label: '🔴 Tinggi', color: '#DC2626' },
 }
+
+const generateDynamicReasoning = (komoditas, src, dst, surplus, deficit, routeScore, priority, risk) => {
+  const k = (komoditas || '').toLowerCase();
+  const s = src || '';
+  const d = dst || '';
+  
+  const srcJawa = s.includes('Jawa') || s.includes('Banten') || s.includes('Jakarta') || s.includes('Yogyakarta');
+  const dstJawa = d.includes('Jawa') || d.includes('Banten') || d.includes('Jakarta') || d.includes('Yogyakarta');
+  const antarPulau = srcJawa !== dstJawa;
+  
+  if (k.includes('beras')) {
+    if (antarPulau && risk > 5) return `Beras Medium direkomendasikan dikirim dari ${s} karena surplus regional tinggi dan kebutuhan ${d} diproyeksikan meningkat (Risiko +${risk.toFixed(1)}%). Distribusi lintas pulau ini mendesak.`;
+    if (antarPulau) return `Redistribusi Beras dari ${s} ke ${d} direkomendasikan untuk menyeimbangkan stok antar pulau sebelum gejolak harga meluas.`;
+    if (surplus > deficit) return `Pasokan Beras dari ${s} sangat mencukupi untuk sepenuhnya menutup defisit di ${d} secara intra-regional.`;
+    return `Pasokan Beras dari ${s} dapat dialihkan ke ${d} untuk optimalisasi stok lokal dengan tingkat kelayakan distribusi yang tinggi (Skor: ${routeScore}).`;
+  }
+  
+  if (k.includes('cabai')) {
+    if (risk > 15) return `Lonjakan risiko harga Cabai ekstrem (+${risk.toFixed(1)}%) di ${d} membutuhkan intervensi pasokan segera dari surplus ${s}.`;
+    if (routeScore > 85) return `Kondisi kritis: Stabilitas harga Cabai di ${d} terancam. Surplus dari ${s} adalah opsi redistribusi paling logis dan cepat saat ini.`;
+    if (antarPulau) return `Cabai dari ${s} direkomendasikan untuk distribusi lintas pulau guna mengamankan defisit di ${d} dan meredam fluktuasi harga.`;
+    return `Redistribusi Cabai intra-regional dari ${s} ke ${d} sangat disarankan untuk meratakan ketersediaan stok jangka pendek.`;
+  }
+  
+  if (k.includes('bawang')) {
+    if (antarPulau) return `Bawang Merah memerlukan redistribusi lintas pulau karena defisit ${d} cukup besar dan kapasitas pasokan ${s} terpantau aman.`;
+    if (risk > 10) return `Risiko kelangkaan Bawang Merah di ${d} terpantau tinggi (+${risk.toFixed(1)}%). Pengiriman dari ${s} diwajibkan sebagai prioritas ${priority}.`;
+    if (surplus > deficit) return `Surplus Bawang di ${s} cukup besar untuk secara total menutupi kekurangan pasokan yang diproyeksikan di ${d}.`;
+    return `Rute redistribusi Bawang Merah ini dinilai layak (Skor: ${routeScore}) untuk mencegah defisit berkelanjutan di pasar ${d}.`;
+  }
+
+  if (k.includes('telur') || k.includes('ayam')) {
+    if (dstJawa) return `Kebutuhan pasokan di pusat padat populasi seperti ${d} mulai meningkat tajam. Pasokan dari ${s} masih dalam level aman untuk dialihkan.`;
+    if (risk > 10) return `Prediksi harga naik +${risk.toFixed(1)}% di ${d}. Disarankan redistribusi segera dari pasokan ${s}.`;
+    if (antarPulau) return `Distribusi protein via jalur pengiriman dari ${s} ke ${d} diperlukan untuk meratakan stok nasional.`;
+    return `Rute intra-regional ini memiliki kelayakan (Skor: ${routeScore}) untuk memperkuat rantai pasok antara ${s} dan ${d}.`;
+  }
+
+  // Generic fallback variations
+  if (routeScore > 80) return `Dengan route score ${routeScore} dan risiko harga rendah, jalur pengiriman dari ${s} ke ${d} ini layak menjadi prioritas distribusi tahap pertama.`;
+  if (antarPulau) return `Redistribusi logistik lintas pulau dari ${s} menuju titik defisit ${d} dinilai sangat strategis.`;
+  if (risk > 5) return `Fluktuasi harga di ${d} (+${risk.toFixed(1)}%) perlu direspon dengan pemindahan surplus dari ${s} untuk menjaga stabilitas.`;
+  return `Pemindahan surplus pasokan dari lumbung ${s} ke wilayah defisit ${d} merupakan opsi optimal untuk keseimbangan pasar.`;
+};
 
 export default function PeluangDistribusi() {
   const [sortKey, setSortKey] = useState('route_score')
@@ -47,7 +91,7 @@ export default function PeluangDistribusi() {
           kapasitas: 8,
           status: r.route_score >= 50 ? 'open' : 'moderate',
           risk: r.forecast_change_pct > 15 ? 'HIGH' : (r.forecast_change_pct > 5 ? 'MED' : 'LOW'),
-          detail: `${r.reason}`,
+          detail: generateDynamicReasoning(r.commodity, r.source_province, r.destination_province, r.surplus_ton, r.deficit_ton, r.route_score, r.route_score >= 80 ? 'Tinggi' : 'Sedang', r.forecast_change_pct || 0),
           surplus_ton: r.surplus_ton,
           deficit_ton: r.deficit_ton,
           forecast_change_pct: r.forecast_change_pct,
@@ -103,18 +147,18 @@ export default function PeluangDistribusi() {
   return (
     <div>
       <div className="page-header">
-        <h2>Supply & Distribution Optimizer</h2>
-        <p>Supply-Demand Overview, Gap Analysis, dan Rekomendasi Rute Distribusi (Forecast-Aware)</p>
+        <h2>Optimizer Pasokan & Distribusi</h2>
+        <p>Tinjauan Pasokan-Permintaan, Analisis Kesenjangan, dan Rekomendasi Rute Distribusi (Berbasis Prediksi)</p>
       </div>
 
-      <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>Optimizer Performance Metrics</h3>
+      <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>Metrik Performa Optimizer</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { label: 'Physical Routes', value: kpiData.total_routes, color: '#3B82F6', icon: Truck },
-          { label: 'Market Alerts', value: kpiData.total_alerts, color: '#DC2626', icon: Target },
-          { label: 'Supported Commodities', value: kpiData.supported_commodities, color: '#10B981', icon: Package },
-          { label: 'Provinces Covered', value: kpiData.provinces_covered, color: '#F97316', icon: Map },
-          { label: 'Avg Route Score', value: kpiData.avg_route_score, color: '#8B5CF6', icon: BarChart2 },
+          { label: 'Rute Fisik', value: kpiData.total_routes, color: '#3B82F6', icon: Truck },
+          { label: 'Peringatan Pasar', value: kpiData.total_alerts, color: '#DC2626', icon: Target },
+          { label: 'Komoditas Terdukung', value: kpiData.supported_commodities, color: '#10B981', icon: Package },
+          { label: 'Provinsi Tercakup', value: kpiData.provinces_covered, color: '#F97316', icon: Map },
+          { label: 'Rata-rata Skor Rute', value: kpiData.avg_route_score, color: '#8B5CF6', icon: BarChart2 },
         ].map((c, i) => (
           <div key={i} className="kpi-card fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16, background: 'white', borderRadius: 12, border: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -123,7 +167,14 @@ export default function PeluangDistribusi() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{c.label}</div>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', fontFamily: 'monospace' }}>{c.value}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#0F172A', fontFamily: 'monospace' }}>
+              {c.value} {c.label === 'Rata-rata Skor Rute' && <span style={{fontSize: 14, color: '#64748B'}}>/ 100</span>}
+            </div>
+            {c.label === 'Rata-rata Skor Rute' && (
+              <div style={{ fontSize: 10, color: '#64748B', lineHeight: 1.4, marginTop: -4 }}>
+                Berdasarkan: Kebutuhan Wilayah, Kapasitas Surplus, Risiko Harga
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -137,15 +188,15 @@ export default function PeluangDistribusi() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginBottom: 32 }}>
         <div>
-          <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>Top Surplus vs Deficit Provinces</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>Provinsi Surplus dan Defisit Terbesar</h3>
           <div className="chart-card" style={{ padding: 20 }}>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 20, bottom: 20 }}>
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 20, bottom: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
                 <XAxis dataKey="provinsi" tick={{ fontSize: 10, fill: '#64748B' }} angle={-25} textAnchor="end" />
                 <YAxis tickFormatter={v => `${(v/1000)}k`} tick={{ fontSize: 10, fill: '#64748B' }} />
                 <Tooltip cursor={{ fill: '#F1F5F9' }} formatter={(value) => `${value.toLocaleString('id-ID')} Ton`} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend verticalAlign="top" wrapperStyle={{ fontSize: 12, paddingBottom: 20 }} />
                 <Bar dataKey="Surplus" fill="#10B981" radius={[4, 4, 0, 0]} barSize={30} />
                 <Bar dataKey="Deficit" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={30} />
               </BarChart>
@@ -163,12 +214,12 @@ export default function PeluangDistribusi() {
         />
       )}
 
-      <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>Route Details Table</h3>
+      <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 12 }}>Tabel Detail Rute</h3>
       <div className="data-table-wrapper fade-in">
         <div className="table-scroll">
           {loading ? (
              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-               Generating Forecast-Aware Routes...
+               Membuat Rute Berbasis Prediksi...
              </div>
           ) : (
           <table className="data-table">
@@ -176,10 +227,10 @@ export default function PeluangDistribusi() {
               <tr>
                 {[
                   ['rank', 'Rank'],
-                  ['asal', 'Asal (Source)'],
-                  ['tujuan', 'Tujuan (Dest)'],
+                  ['asal', 'Asal'],
+                  ['tujuan', 'Tujuan'],
                   ['komoditas', 'Komoditas'],
-                  ['route_score', 'Route Score'],
+                  ['route_score', 'Skor Rute'],
                   [null, 'Status'],
                   [null, 'Detail'],
                 ].map(([key, label]) => (
@@ -243,7 +294,7 @@ export default function PeluangDistribusi() {
                           <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                             <strong>📋 Detail Rute #{r.rank}:</strong> {r.detail}
                             <span style={{ marginLeft: 12, color: riskCfg.color, fontWeight: 600 }}>
-                              Risk Score: {riskCfg.label}
+                              Tingkat Risiko: {riskCfg.label}
                             </span>
                           </div>
                         </td>
