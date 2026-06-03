@@ -18,12 +18,16 @@ def health(request: Request):
     model_loaded = bool(getattr(request.app.state, "model_loaded", False))
     feature_columns = getattr(request.app.state, "feature_columns", [])
     feature_loaded = isinstance(feature_columns, list) and len(feature_columns) > 0
+    storage_ready = bool(getattr(request.app.state, "storage_ready", False))
+    dataset_loaded = bool(getattr(request.app.state, "dataset_loaded", False))
+    is_ready = storage_ready and dataset_loaded and model_loaded and feature_loaded
 
     return {
-        "status": "ok",
-        "storage_ready": bool(getattr(request.app.state, "storage_ready", False)),
+        "status": "ok" if is_ready else "degraded",
+        "ready": is_ready,
+        "storage_ready": storage_ready,
         "storage_error": getattr(request.app.state, "storage_error", None),
-        "dataset_loaded": bool(getattr(request.app.state, "dataset_loaded", False)),
+        "dataset_loaded": dataset_loaded,
         "model_loaded": model_loaded,
         "feature_loaded": feature_loaded,
         "prediction_engine": getattr(request.app.state, "prediction_engine", None),

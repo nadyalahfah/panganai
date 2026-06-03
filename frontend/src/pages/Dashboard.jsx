@@ -16,6 +16,7 @@ import DistributionOptimizer from "../components/DistributionOptimizer";
 import EarlyWarningSystem from "../components/EarlyWarningSystem";
 import AICommodityIntelligence from "../components/AICommodityIntelligence";
 import {
+  API_BASE,
   fetchDashboardDetail,
   fetchDashboardInitial,
   formatRupiahShort,
@@ -67,6 +68,12 @@ export default function Dashboard({ onAlertsLoaded }) {
           : initData.default_selection?.komoditas ||
             komoditasData?.[0]?.slug ||
             "";
+
+        if (!komoditasData.length || !provData.length) {
+          throw new Error(
+            "Backend deploy belum memuat dataset. Cek /api/health: storage_ready, dataset_loaded, dan model_loaded harus true.",
+          );
+        }
 
         setAlerts(alertData);
         onAlertsLoaded?.(alertData.filter((a) => a.kenaikan_pct > 10));
@@ -238,7 +245,7 @@ export default function Dashboard({ onAlertsLoaded }) {
           <h3>Tidak dapat terhubung ke server</h3>
           <p>{error}</p>
           <p style={{ marginTop: 8, fontSize: 12 }}>
-            Pastikan backend berjalan di <code>localhost:8000</code>
+            API yang dipakai: <code>{API_BASE}</code>
           </p>
         </div>
       </div>
@@ -249,6 +256,7 @@ export default function Dashboard({ onAlertsLoaded }) {
     <div>
       {showGuideBanner && (
         <div
+          className="dashboard-guide-banner"
           style={{
             marginBottom: 14,
             border: "1px solid #BFDBFE",
@@ -261,14 +269,16 @@ export default function Dashboard({ onAlertsLoaded }) {
             gap: 12,
           }}
         >
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="dashboard-guide-content" style={{ display: "flex", gap: 10 }}>
             <Info
+              className="dashboard-guide-icon"
               size={16}
               color="#1D4ED8"
               style={{ marginTop: 2, flexShrink: 0 }}
             />
             <div>
               <div
+                className="dashboard-guide-title"
                 style={{
                   fontSize: 14,
                   fontWeight: 700,
@@ -278,7 +288,7 @@ export default function Dashboard({ onAlertsLoaded }) {
               >
                 Panduan Singkat Dashboard
               </div>
-              <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
+              <div className="dashboard-guide-text" style={{ fontSize: 12, color: "#334155", lineHeight: 1.5 }}>
                 Pilih <strong>Komoditas</strong> dan{" "}
                 <strong>Rentang Prediksi 7/30 hari</strong> di kanan atas.
                 <strong> Peta Risiko</strong> menampilkan level risiko per
@@ -307,6 +317,7 @@ export default function Dashboard({ onAlertsLoaded }) {
       )}
 
       <div
+        className="dashboard-title-row"
         style={{
           display: "flex",
           alignItems: "flex-start",
@@ -316,7 +327,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         }}
       >
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="dashboard-title-line" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <h2>Pusat Komando Eksekutif PanganAI</h2>
             {komoditasList.length > 0 && (
               <span
@@ -337,7 +348,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2" style={{ marginBottom: 24 }}>
+      <div className="dashboard-summary-row flex items-center gap-2" style={{ marginBottom: 24 }}>
         <div className="metrics-grid flex-1 gap-2">
           {loading ? (
             <>
@@ -381,6 +392,7 @@ export default function Dashboard({ onAlertsLoaded }) {
         </div>
 
         <div
+          className="dashboard-filter-panel"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -388,7 +400,7 @@ export default function Dashboard({ onAlertsLoaded }) {
             gap: 8,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="dashboard-filter-select-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <select
               className="filter-select"
               value={selKomoditas}

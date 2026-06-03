@@ -1,13 +1,14 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useRef } from "react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
 } from "react-simple-maps";
+import { IoClose } from "react-icons/io5";
 import { formatRupiah, formatTanggalFull } from "../api";
 
-const geoUrl = "/indonesia-province.json";
+const geoUrl = "/indonesia-province-simple.json";
 
 export default function IndonesiaMap({
   data,
@@ -19,6 +20,15 @@ export default function IndonesiaMap({
   const [hoverRegion, setHoverRegion] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [selectedProv, setSelectedProv] = useState(null);
+  const [pinnedRegion, setPinnedRegion] = useState(null);
+  const [isMobileMap, setIsMobileMap] = useState(false);
+  const tooltipRef = useRef(null);
+  const mapViewportRef = useRef(null);
+  const mapWrapRef = useRef(null);
+  const activeHoverKeyRef = useRef(null);
+  const pendingTooltipPointRef = useRef(null);
+  const tooltipMoveFrameRef = useRef(null);
+  const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
 
   const normalizeProvName = (name) => {
     if (!name) return "";
@@ -223,6 +233,56 @@ export default function IndonesiaMap({
     return canonical;
   };
 
+  React.useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const updateMobileMode = () => setIsMobileMap(query.matches);
+
+    updateMobileMode();
+    if (query.addEventListener) {
+      query.addEventListener("change", updateMobileMode);
+      return () => query.removeEventListener("change", updateMobileMode);
+    }
+
+    query.addListener(updateMobileMode);
+    return () => query.removeListener(updateMobileMode);
+  }, []);
+
+  React.useEffect(() => {
+    setPinnedRegion(null);
+    setSelectedProv(null);
+  }, [data, komoditas, horizon]);
+
+  React.useEffect(() => {
+    return () => {
+      if (tooltipMoveFrameRef.current) {
+        window.cancelAnimationFrame(tooltipMoveFrameRef.current);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const el = mapViewportRef.current;
+    if (!el) return undefined;
+
+    const updateSize = () => {
+      const width = el.clientWidth || 0;
+      if (!width) return;
+      const height = Math.round(Math.max(240, Math.min(520, width * 0.58)));
+      setMapSize({ width, height });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateSize);
+      return () => window.removeEventListener("resize", updateSize);
+    }
+
+    const observer = new ResizeObserver(() => updateSize());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Parse backend data into a lookup dictionary keyed by normalized province name
   const provDataMap = useMemo(() => {
     const mapData = {};
@@ -261,38 +321,52 @@ export default function IndonesiaMap({
     return mapData;
   }, [data]);
 
-  const updateTooltipPos = (clientX, clientY) => {
-    const tooltipWidth = 260; // Estimated max width
-    const tooltipHeight = 280; // Estimated height
-    const margin = 15;
+  const getTooltipPosition = (clientX, clientY) => {
+    const margin = isMobileMap ? 10 : 15;
+    const tooltipWidth = Math.min(260, window.innerWidth - margin * 2);
+    const tooltipHeight = isMobileMap ? 330 : 280;
 
     let x = clientX + margin;
     let y = clientY + margin;
 
-    // Right edge detection
-    if (x + tooltipWidth > window.innerWidth) {
-      x = clientX - tooltipWidth - margin;
+    if (x + tooltipWidth > window.innerWidth - margin) {
+      x = window.innerWidth - tooltipWidth - margin;
     }
+    if (x < margin) x = margin;
 
-    // Bottom edge detection
-    if (y + tooltipHeight > window.innerHeight) {
+    if (y + tooltipHeight > window.innerHeight - margin) {
       y = window.innerHeight - tooltipHeight - margin;
     }
+    if (y < margin) y = margin;
 
-    // Top edge detection
-    if (y < margin) {
-      y = margin;
-    }
-
-    setTooltipPos({ x, y });
+    return { x, y };
   };
 
-  const handleMouseEnter = (geo, e) => {
-    const rawGeoName = getGeoProvName(geo.properties);
-    const provName = toBackendProv(rawGeoName);
+  const updateTooltipPos = (clientX, clientY) => {
+    pendingTooltipPointRef.current = { clientX, clientY };
+    if (tooltipMoveFrameRef.current) return;
 
+    tooltipMoveFrameRef.current = window.requestAnimationFrame(() => {
+      tooltipMoveFrameRef.current = null;
+      const point = pendingTooltipPointRef.current;
+      if (!point) return;
+
+      const nextPos = getTooltipPosition(point.clientX, point.clientY);
+      const tooltip = tooltipRef.current;
+
+      if (tooltip) {
+        tooltip.style.transform = `translate3d(${nextPos.x}px, ${nextPos.y}px, 0)`;
+        return;
+      }
+
+      setTooltipPos(nextPos);
+    });
+  };
+
+  const getRegionData = (rawName) => {
+    const provName = toBackendProv(rawName);
     const provData = provDataMap[provName] || {
-      name: rawGeoName || "Provinsi tidak terbaca",
+      name: rawName || "Provinsi tidak terbaca",
       harga: 0,
       prediksi: 0,
       changePct: 0,
@@ -300,40 +374,81 @@ export default function IndonesiaMap({
       color: "#CBD5E1",
     };
 
-    setHoverRegion({ ...provData, rawName: rawGeoName });
-    updateTooltipPos(e.clientX, e.clientY);
+    return { provName, region: { ...provData, rawName } };
+  };
+
+  const handleMouseEnter = (geo, e) => {
+    const rawGeoName = getGeoProvName(geo.properties);
+    const { provName, region } = getRegionData(rawGeoName);
+
+    if (isMobileMap && pinnedRegion) return;
+    if (activeHoverKeyRef.current === provName) {
+      updateTooltipPos(e.clientX, e.clientY);
+      return;
+    }
+    activeHoverKeyRef.current = provName;
+    setTooltipPos(getTooltipPosition(e.clientX, e.clientY));
+    setHoverRegion(region);
   };
 
   const handleMarkerEnter = (provName, e) => {
     const provData = provDataMap[provName];
 
     if (!provData) return;
+    if (isMobileMap && pinnedRegion) return;
+    if (activeHoverKeyRef.current === provName) {
+      updateTooltipPos(e.clientX, e.clientY);
+      return;
+    }
 
+    activeHoverKeyRef.current = provName;
     setHoverRegion({
       ...provData,
       rawName: provName,
     });
 
-    updateTooltipPos(e.clientX, e.clientY);
+    setTooltipPos(getTooltipPosition(e.clientX, e.clientY));
   };
 
   const handleMouseMove = (e) => {
+    if (isMobileMap && pinnedRegion) return;
     updateTooltipPos(e.clientX, e.clientY);
   };
 
   const handleMouseLeave = () => {
+    if (isMobileMap && pinnedRegion) return;
+    activeHoverKeyRef.current = null;
     setHoverRegion(null);
   };
 
-  const handleClick = (geo) => {
-    const rawGeoName = getGeoProvName(geo.properties);
-    const provName = toBackendProv(rawGeoName);
+  const handleRegionPress = (rawGeoName, e) => {
+    const { provName, region } = getRegionData(rawGeoName);
 
-    if (selectedProv === provName) {
+    if (selectedProv === provName && pinnedRegion) {
       setSelectedProv(null);
-    } else {
-      setSelectedProv(provName);
+      setPinnedRegion(null);
+      setHoverRegion(null);
+      activeHoverKeyRef.current = null;
+      return;
     }
+
+    setSelectedProv(provName);
+    setPinnedRegion(region);
+    setHoverRegion(null);
+    activeHoverKeyRef.current = null;
+    setTooltipPos(getTooltipPosition(e.clientX, e.clientY));
+  };
+
+  const handleClick = (geo, e) => {
+    const rawGeoName = getGeoProvName(geo.properties);
+    handleRegionPress(rawGeoName, e);
+  };
+
+  const closePinnedRegion = () => {
+    setSelectedProv(null);
+    setPinnedRegion(null);
+    setHoverRegion(null);
+    activeHoverKeyRef.current = null;
   };
 
   let currentDateStr = "Hari ini";
@@ -347,95 +462,184 @@ export default function IndonesiaMap({
     return "-";
   };
 
+  const mapCanvasWidth =
+    isMobileMap && mapSize.width > 0
+      ? Math.max(720, Math.round(mapSize.width * 2.05))
+      : mapSize.width;
+  const mapCanvasHeight = isMobileMap
+    ? Math.max(320, mapSize.height)
+    : mapSize.height;
+  const mapProjectionScale =
+    mapCanvasWidth > 0
+      ? Math.max(
+          860,
+          Math.min(
+            isMobileMap ? 1250 : 1350,
+            Math.round(
+              Math.min(mapCanvasWidth * 1.18, mapCanvasHeight * 2.05),
+            ),
+          ),
+        )
+      : 1600;
+  const mapDisplayRegion = pinnedRegion || hoverRegion;
+
+  React.useEffect(() => {
+    if (!mapDisplayRegion || !tooltipRef.current) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      const tooltip = tooltipRef.current;
+      if (!tooltip) return;
+
+      const margin = isMobileMap ? 10 : 15;
+      const rect = tooltip.getBoundingClientRect();
+      let nextX = tooltipPos.x;
+      let nextY = tooltipPos.y;
+
+      if (rect.right > window.innerWidth - margin) {
+        nextX -= rect.right - (window.innerWidth - margin);
+      }
+      if (rect.left < margin) {
+        nextX += margin - rect.left;
+      }
+      if (rect.bottom > window.innerHeight - margin) {
+        nextY -= rect.bottom - (window.innerHeight - margin);
+      }
+      if (rect.top < margin) {
+        nextY += margin - rect.top;
+      }
+
+      if (nextX !== tooltipPos.x || nextY !== tooltipPos.y) {
+        setTooltipPos({ x: nextX, y: nextY });
+        tooltip.style.transform = `translate3d(${nextX}px, ${nextY}px, 0)`;
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isMobileMap, mapDisplayRegion, tooltipPos.x, tooltipPos.y]);
+
+  const renderedMap = useMemo(
+    () => (
+      <div
+        ref={mapWrapRef}
+        style={{
+          width: mapCanvasWidth || "100%",
+          height: "100%",
+          minWidth: "100%",
+        }}
+      >
+        {mapSize.width > 0 && (
+          <ComposableMap
+            width={mapCanvasWidth}
+            height={mapCanvasHeight}
+            projection="geoMercator"
+            projectionConfig={{
+              center: [118.5, -2.7],
+              scale: mapProjectionScale,
+            }}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <Geographies geography={geoUrl}>
+              {({ geographies }) => {
+                return geographies.map((geo) => {
+                  const rawGeoName = getGeoProvName(geo.properties);
+                  const provName = toBackendProv(rawGeoName);
+                  const d = provDataMap[provName];
+
+                  const defaultColor = "#CBD5E1";
+                  const fillColor = d ? d.color : defaultColor;
+                  const isSelected = selectedProv === provName;
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={(e) => handleMouseEnter(geo, e)}
+                      onMouseMove={handleMouseMove}
+                      onMouseLeave={handleMouseLeave}
+                      onClick={(e) => handleClick(geo, e)}
+                      style={{
+                        default: {
+                          fill: fillColor,
+                          stroke: isSelected ? "#111827" : "#FFFFFF",
+                          strokeWidth: isSelected ? 1.5 : 0.5,
+                          outline: "none",
+                          opacity: isSelected ? 1 : 0.85,
+                        },
+                        hover: {
+                          fill: fillColor,
+                          stroke: "#111827",
+                          strokeWidth: 1,
+                          outline: "none",
+                          opacity: 1,
+                          cursor: "pointer",
+                        },
+                        pressed: {
+                          fill: fillColor,
+                          stroke: "#111827",
+                          strokeWidth: 1.5,
+                          outline: "none",
+                          opacity: 1,
+                        },
+                      }}
+                    />
+                  );
+                });
+              }}
+            </Geographies>
+            {Object.entries(provDataMap).map(([provName, prov]) => {
+              const coords = PROVINCE_COORDS[provName];
+              if (!coords) return null;
+
+              return (
+                <Marker key={provName} coordinates={coords}>
+                  <circle
+                    r={provName === "KALIMANTAN UTARA" ? 6 : 4}
+                    fill={prov.color}
+                    stroke="#111827"
+                    strokeWidth={1}
+                    style={{ cursor: "pointer" }}
+                    onMouseEnter={(e) => handleMarkerEnter(provName, e)}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
+                    onClick={(e) => handleRegionPress(provName, e)}
+                  />
+                </Marker>
+              );
+            })}
+          </ComposableMap>
+        )}
+      </div>
+    ),
+    [
+      isMobileMap,
+      mapCanvasHeight,
+      mapCanvasWidth,
+      mapProjectionScale,
+      mapSize.width,
+      pinnedRegion,
+      provDataMap,
+      selectedProv,
+    ],
+  );
+
   return (
     <div
+      ref={mapViewportRef}
       style={{
         position: "relative",
         width: "100%",
-        height: 400,
+        minHeight: 320,
+        height: "clamp(320px, 52vw, 520px)",
         background: "var(--gray-50)",
         borderRadius: 8,
-        overflow: "hidden",
+        overflowX: isMobileMap ? "auto" : "hidden",
+        overflowY: "hidden",
+        WebkitOverflowScrolling: "touch",
         border: "1px solid var(--gray-200)",
       }}
     >
       {/* Map */}
-      <ComposableMap
-        projection="geoMercator"
-        projectionConfig={{
-          center: [118, -2.5],
-          scale: 1600,
-        }}
-        style={{ width: "100%", height: "100%" }}
-      >
-        <Geographies geography={geoUrl}>
-          {({ geographies }) => {
-            return geographies.map((geo) => {
-              const rawGeoName = getGeoProvName(geo.properties);
-              const provName = toBackendProv(rawGeoName);
-              const d = provDataMap[provName];
-
-              const defaultColor = "#CBD5E1";
-              const fillColor = d ? d.color : defaultColor;
-              const isSelected = selectedProv === provName;
-
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  onMouseEnter={(e) => handleMouseEnter(geo, e)}
-                  onMouseMove={handleMouseMove}
-                  onMouseLeave={handleMouseLeave}
-                  onClick={() => handleClick(geo)}
-                  style={{
-                    default: {
-                      fill: fillColor,
-                      stroke: isSelected ? "#111827" : "#FFFFFF",
-                      strokeWidth: isSelected ? 1.5 : 0.5,
-                      outline: "none",
-                      opacity: isSelected ? 1 : 0.85,
-                    },
-                    hover: {
-                      fill: fillColor,
-                      stroke: "#111827",
-                      strokeWidth: 1,
-                      outline: "none",
-                      opacity: 1,
-                      cursor: "pointer",
-                    },
-                    pressed: {
-                      fill: fillColor,
-                      stroke: "#111827",
-                      strokeWidth: 1.5,
-                      outline: "none",
-                      opacity: 1,
-                    },
-                  }}
-                />
-              );
-            });
-          }}
-        </Geographies>
-        {Object.entries(provDataMap).map(([provName, prov]) => {
-          const coords = PROVINCE_COORDS[provName];
-          if (!coords) return null;
-
-          return (
-            <Marker key={provName} coordinates={coords}>
-              <circle
-                r={provName === "KALIMANTAN UTARA" ? 6 : 4}
-                fill={prov.color}
-                stroke="#111827"
-                strokeWidth={1}
-                style={{ cursor: "pointer" }}
-                onMouseEnter={(e) => handleMarkerEnter(provName, e)}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
-              />
-            </Marker>
-          );
-        })}
-      </ComposableMap>
+      {renderedMap}
 
       {/* Legend */}
       <div
@@ -501,24 +705,65 @@ export default function IndonesiaMap({
       </div>
 
       {/* Custom Tooltip */}
-      {hoverRegion && (
+      {mapDisplayRegion && (
         <div
+          ref={tooltipRef}
           style={{
             position: "fixed",
-            top: tooltipPos.y,
-            left: tooltipPos.x,
+            top: 0,
+            left: 0,
+            transform: `translate3d(${tooltipPos.x}px, ${tooltipPos.y}px, 0)`,
+            willChange: "transform",
             background: "white",
             padding: 12,
             borderRadius: 8,
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             border: "1px solid var(--gray-200)",
-            pointerEvents: "none",
+            pointerEvents: pinnedRegion ? "auto" : "none",
             zIndex: 1000,
-            minWidth: 200,
+            minWidth: isMobileMap ? 0 : 200,
+            width: isMobileMap ? "min(260px, calc(100vw - 20px))" : undefined,
+            maxHeight: isMobileMap ? "calc(100vh - 20px)" : undefined,
+            overflowY: isMobileMap ? "auto" : undefined,
           }}
         >
-          <div style={{ fontWeight: "bold", fontSize: 14, marginBottom: 6 }}>
-            {hoverRegion.name}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 10,
+              marginBottom: 6,
+            }}
+          >
+            <div style={{ fontWeight: "bold", fontSize: 14, paddingRight: pinnedRegion ? 4 : 0 }}>
+              {mapDisplayRegion.name}
+            </div>
+            {pinnedRegion && (
+              <button
+                type="button"
+                onClick={closePinnedRegion}
+                aria-label="Tutup detail provinsi"
+                title="Tutup"
+                style={{
+                  width: 26,
+                  height: 26,
+                  border: "1px solid var(--gray-200)",
+                  background: "#F8FAFC",
+                  color: "#64748B",
+                  borderRadius: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  marginTop: -4,
+                  marginRight: -4,
+                }}
+              >
+                <IoClose size={16} />
+              </button>
+            )}
           </div>
           <div
             style={{
@@ -535,8 +780,8 @@ export default function IndonesiaMap({
 
           <div style={{ fontSize: 12, marginBottom: 2 }}>
             <span style={{ color: "var(--text-muted)" }}>Status: </span>
-            <span style={{ fontWeight: "bold", color: hoverRegion.color }}>
-              {hoverRegion.status}
+            <span style={{ fontWeight: "bold", color: mapDisplayRegion.color }}>
+              {mapDisplayRegion.status}
             </span>
           </div>
 
@@ -559,7 +804,7 @@ export default function IndonesiaMap({
                 Harga Saat Ini
               </div>
               <div style={{ fontWeight: 600, fontSize: 14 }}>
-                {hoverRegion.harga > 0 ? formatRupiah(hoverRegion.harga) : "-"}
+                {mapDisplayRegion.harga > 0 ? formatRupiah(mapDisplayRegion.harga) : "-"}
               </div>
             </div>
           </div>
@@ -569,8 +814,8 @@ export default function IndonesiaMap({
               Prediksi (+{horizon} Hari)
             </div>
             <div style={{ fontWeight: 600, fontSize: 14 }}>
-              {hoverRegion.prediksi > 0
-                ? formatRupiah(hoverRegion.prediksi)
+              {mapDisplayRegion.prediksi > 0
+                ? formatRupiah(mapDisplayRegion.prediksi)
                 : "-"}
             </div>
           </div>
@@ -584,19 +829,19 @@ export default function IndonesiaMap({
                 fontWeight: "bold",
                 fontSize: 14,
                 color:
-                  hoverRegion.changePct > 0
+                  mapDisplayRegion.changePct > 0
                     ? "#EF4444"
-                    : hoverRegion.changePct < 0
+                    : mapDisplayRegion.changePct < 0
                       ? "#10B981"
                       : "#6B7280",
               }}
             >
-              {getPerubahanIcon(hoverRegion.changePct)}{" "}
-              {Math.abs(hoverRegion.changePct).toFixed(2)}%
+              {getPerubahanIcon(mapDisplayRegion.changePct)}{" "}
+              {Math.abs(mapDisplayRegion.changePct).toFixed(2)}%
             </div>
           </div>
 
-          {hoverRegion.score && (
+          {mapDisplayRegion.score && (
             <div
               style={{
                 display: "flex",
@@ -606,7 +851,7 @@ export default function IndonesiaMap({
               }}
             >
               <span style={{ color: "var(--text-muted)" }}>Skor Risiko:</span>
-              <span style={{ fontWeight: "bold" }}>{hoverRegion.score}</span>
+              <span style={{ fontWeight: "bold" }}>{mapDisplayRegion.score}</span>
             </div>
           )}
         </div>
